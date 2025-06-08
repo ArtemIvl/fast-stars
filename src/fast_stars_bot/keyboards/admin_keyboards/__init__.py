@@ -1,0 +1,8 @@
+from .admin_main_keyboard import admin_keyboard, admin_back_keyboard
+from .admin_channels_keyboard import manage_channels_keyboard, delete_channels_keyboard, channel_info_keyboard, back_to_channels_keyboard
+from .admin_users_keyboard import manage_users_keyboard, back_to_users_keyboard, banned_users_keyboard, user_referrals_keyboard
+from .admin_promo_keyboard import manage_promo_keyboard, promo_pages_keyboard, back_to_promo_keyboard
+from .admin_tasks_keyboard import manage_tasks_keyboard, delete_tasks_keyboard, task_info_keyboard, back_to_tasks_keyboard
+from .admin_games_keyboard import manage_games_keyboard, back_to_games_keyboard
+from .admin_message_keyboard import audience_keyboard, time_choice_keyboard, back_to_message_keyboard
+from .admin_withdraw_keyboard import withdraw_info_keyboard, pending_withdraw_keyboard, back_to_withdrawal_keyboard
