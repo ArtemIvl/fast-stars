@@ -12,6 +12,13 @@ def register_menu_handlers(dp) -> None:
     dp.include_router(router)
 
 
+def get_menu_text(user) -> str:
+    return (
+        "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
+        "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
+        f"Баланс: {user.stars:.2f}⭐️</b>"
+    )
+
 @router.message(F.text.in_({"/menu", "⭐️ Меню"}))
 async def menu_callback(message: types.Message, state: FSMContext) -> None:
     await state.clear()
@@ -20,9 +27,7 @@ async def menu_callback(message: types.Message, state: FSMContext) -> None:
         user = await get_user_by_telegram_id(session, telegram_id)
 
     await message.answer(
-        "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
-        "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
-        f"Баланс: {user.stars:.2f}⭐️</b>",
+        get_menu_text(user),
         parse_mode="HTML",
         reply_markup=menu_keyboard(),
     )
@@ -36,9 +41,7 @@ async def back_menu_callback(callback: types.CallbackQuery, state: FSMContext) -
 
     try:
         await callback.message.edit_text(
-            "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
-            "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
-            f"Баланс: {user.stars:.2f}⭐️</b>",
+            get_menu_text(user),
             parse_mode="HTML",
             reply_markup=menu_keyboard(),
         )

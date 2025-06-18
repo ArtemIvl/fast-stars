@@ -37,6 +37,11 @@ def admin_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text="Управление выводами", callback_data="manage_withdrawals"
             )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Управление розыгрышами", callback_data="manage_giveaways"
+            )
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

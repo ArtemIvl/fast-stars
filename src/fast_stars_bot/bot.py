@@ -33,8 +33,23 @@ from middlewares.ban_check import BanCheckMiddleware
 from middlewares.block_actions_while_playing import BlockActionsWhilePlayingMiddleware
 from middlewares.username_tracking import UserTrackingMiddleware
 from services.cleanup import cleanup_old_canceled_games
+from middlewares.logging import LoggingMiddleware
+from handlers.minigames_handlers.games_handlers import register_games_handlers
+from handlers.giveaway_handlers import register_giveaway_handlers
+from handlers.minigames_handlers.slot_machine_handlers import register_slot_machine_settings
+from services.giveaway_scheduler import setup_weekly_giveaway
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        logging.FileHandler("bot_timing.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
+
+# Убираем лишние логи от aiogram.event
+logging.getLogger("aiogram.event").setLevel(logging.WARNING)
 
 bot = Bot(token=settings.TOKEN)
 dp = Dispatcher()
@@ -50,6 +65,8 @@ dp.message.middleware(BanCheckMiddleware())
 dp.callback_query.middleware(BanCheckMiddleware())
 dp.message.middleware(BlockActionsWhilePlayingMiddleware())
 dp.callback_query.middleware(BlockActionsWhilePlayingMiddleware())
+dp.message.middleware(LoggingMiddleware())
+dp.callback_query.middleware(LoggingMiddleware())
 
 # Handlers
 register_start_handlers(dp)
@@ -68,11 +85,16 @@ register_x2game_handlers(dp)
 register_withdrawal_handlers(dp)
 register_deposit_handlers(dp)
 register_stats_handlers(dp)
+register_games_handlers(dp)
+register_giveaway_handlers(dp)
+register_slot_machine_settings(dp)
 
 
 async def main():
     # Scheduler
     setup_daily_reminders(bot)
+    # Giveaway scheduler
+    setup_weekly_giveaway(bot)
     # Cancelled games cleanup
     asyncio.create_task(cleanup_old_canceled_games())
     # Start polling

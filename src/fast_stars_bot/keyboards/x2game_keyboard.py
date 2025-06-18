@@ -16,7 +16,7 @@ def x2game_keyboard() -> InlineKeyboardMarkup:
         ],
     ]
     inline_keyboard.append(
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="x2_game")]
     )
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 

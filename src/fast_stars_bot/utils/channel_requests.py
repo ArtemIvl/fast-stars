@@ -16,9 +16,9 @@ async def get_channel_by_id(session: AsyncSession, channel_id: int) -> Channel |
 
 
 async def add_channel(
-    session: AsyncSession, name: str, username: str, link: str
+    session: AsyncSession, name: str, username: str, link: str, requires_subscription: bool
 ) -> None:
-    new_channel = Channel(name=name, username=username, link=link)
+    new_channel = Channel(name=name, username=username, link=link, requires_subscription=requires_subscription)
     session.add(new_channel)
     await session.commit()
 

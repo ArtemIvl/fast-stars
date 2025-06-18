@@ -9,6 +9,7 @@ from .task_admin import task_admin_router
 from .games_admin import games_admin_router
 from .message_admin import message_admin_router
 from .withdraw_admin import withdraw_admin_router
+from .giveaway_admin import giveaway_admin_router
 
 
 def register_admin_handlers(dp):
@@ -24,5 +25,6 @@ def register_admin_handlers(dp):
     admin_router.include_router(games_admin_router)
     admin_router.include_router(message_admin_router)
     admin_router.include_router(withdraw_admin_router)
+    admin_router.include_router(giveaway_admin_router)
 
     dp.include_router(admin_router)

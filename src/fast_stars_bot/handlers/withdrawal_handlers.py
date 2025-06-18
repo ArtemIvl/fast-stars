@@ -30,6 +30,17 @@ def calculate_commission(amount: Decimal) -> int:
         return 5
     return -1
 
+async def notify_admins(session, withdrawal, user, bot):
+    admins = await get_all_admins(session)
+    detailed_text = await generate_detailed_withdraw_text(session, withdrawal, user)
+    for admin in admins:
+        await bot.send_message(
+            admin.telegram_id,
+            detailed_text,
+            parse_mode="HTML",
+            reply_markup=withdraw_info_keyboard(withdrawal.id, user.id)
+        )
+
 @router.callback_query(F.data == "withdraw")
 async def withdrawal_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     await state.clear()
@@ -105,28 +116,20 @@ async def handle_swap_amount(message: types.Message, state: FSMContext) -> None:
 @router.message(WithdrawalStates.waiting_for_ton_address)
 async def handle_ton_address(message: types.Message, state: FSMContext) -> None:
     try:
-        ton_address = str(message.text)
+        ton_address = message.text.strip()
         # add checks for valid ton address format
         async with SessionLocal() as session:
             telegram_id = message.from_user.id
             user = await get_user_by_telegram_id(session, telegram_id)
             data = await state.get_data()
-            amount = Decimal(data.get("swap_amount"))
+            amount = Decimal(data.get("swap_amount", "0"))
             if user.stars < amount:
                 await message.answer("Недостаточно звёзд для вывода.")
                 return
             
             withdrawal_id = await create_withdrawal_request(session, user.id, amount, ton_address)
             withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
-            admins = await get_all_admins(session)
-            detailed_text = await generate_detailed_withdraw_text(session, withdrawal, user)
-            for admin in admins:
-                await message.bot.send_message(
-                    admin.telegram_id,
-                    detailed_text,
-                    parse_mode="HTML",
-                    reply_markup=withdraw_info_keyboard(withdrawal_id, user.id),
-                )
+            await notify_admins(session, withdrawal, user, message.bot)
         
         await message.answer(
             "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
@@ -143,10 +146,14 @@ async def handle_ton_address(message: types.Message, state: FSMContext) -> None:
 async def handle_withdrawal_amount(message: types.Message, state: FSMContext) -> None:
     try:
         amount = Decimal(message.text)
-        async with SessionLocal() as session:
-            telegram_id = message.from_user.id
-            user = await get_user_by_telegram_id(session, telegram_id)
-            first_time = not await has_previous_withdrawals(session, user.id)
+    except (ValueError, InvalidOperation):
+        await message.answer("Пожалуйста, введите корректную сумму для вывода.")
+        return
+
+    telegram_id = message.from_user.id
+    async with SessionLocal() as session:
+        user = await get_user_by_telegram_id(session, telegram_id)
+        first_time = not await has_previous_withdrawals(session, user.id)
 
         commission = 0 if first_time else calculate_commission(amount)
         if commission == -1:
@@ -187,34 +194,22 @@ async def handle_withdrawal_amount(message: types.Message, state: FSMContext) ->
                 
             asyncio.create_task(delete_invoice_later())
             return
-        async with SessionLocal() as session:
-            telegram_id = message.from_user.id
-            user = await get_user_by_telegram_id(session, telegram_id)
-            if user.stars < amount:
-                await message.answer("Недостаточно звёзд для вывода.")
-                return
-            
-            withdrawal_id = await create_withdrawal_request(session, user.id, amount)
-            withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
-            admins = await get_all_admins(session)
-            detailed_text = await generate_detailed_withdraw_text(session, withdrawal, user)
-            for admin in admins:
-                await message.bot.send_message(
-                    admin.telegram_id,
-                    detailed_text,
-                    parse_mode="HTML",
-                    reply_markup=withdraw_info_keyboard(withdrawal_id, user.id),
-                )
         
-        await message.answer(
-            "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
-            "Ожидайте подтверждения заявки в течение <b>24 часов</b>🤝",
-            parse_mode="HTML",
-            reply_markup=back_to_profile_keyboard()
-        )
-        await state.clear()
-    except (ValueError, InvalidOperation):
-        await message.answer("Пожалуйста, введите корректную сумму для вывода.")
+        if user.stars < amount:
+            await message.answer("Недостаточно звёзд для вывода.")
+            return
+        
+        withdrawal_id = await create_withdrawal_request(session, user.id, amount)
+        withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
+        await notify_admins(session, withdrawal, user, message.bot)
+    
+    await message.answer(
+        "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
+        "Ожидайте подтверждения заявки в течение <b>24 часов</b>🤝",
+        parse_mode="HTML",
+        reply_markup=back_to_profile_keyboard()
+    )
+    await state.clear()
 
 
 @router.pre_checkout_query(lambda q: True)

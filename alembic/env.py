@@ -19,6 +19,8 @@ from src.fast_stars_bot.db.models.x2game import X2Game
 from src.fast_stars_bot.db.models.withdrawal import Withdrawal
 from src.fast_stars_bot.db.models.game_settings import GameSetting
 from src.fast_stars_bot.db.models.deposit import Deposit
+from src.fast_stars_bot.db.models.giveaway import Giveaway, GiveawayTicket
+from src.fast_stars_bot.db.models.slot_machine_log import SlotMachineLog
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

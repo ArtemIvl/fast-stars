@@ -5,11 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models.task import TaskCompletion, Task
 from datetime import date
 from db.models.withdrawal import Withdrawal
+from decimal import Decimal
 
 
 def allowed_phone_number(phone: str) -> bool:
+    phone = phone.lstrip("+")
     return phone.startswith(
-        tuple(["380", "48", "420", "7", "375", "39", "49", "31", "995"])
+        tuple(["380", "48", "39", "49", "420", "370", "371", "7", "375", "373", "372"])
     )
 
 
@@ -157,3 +159,8 @@ async def get_banned_users_count(session: AsyncSession) -> int:
         select(func.count()).select_from(User).where(User.is_banned == True)
     )
     return result.scalar_one()
+
+async def add_stars_to_user(session: AsyncSession, user_id: int, stars: Decimal) -> None:
+    user = await get_user_by_id(session, user_id)
+    user.stars += stars
+    await session.commit()

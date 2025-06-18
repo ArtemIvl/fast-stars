@@ -23,7 +23,7 @@ async def cube_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🔄 Обновить", callback_data="cube_refresh")
     ])
     rows.append([
-        InlineKeyboardButton(text="🔙 Назад", callback_data="back")
+        InlineKeyboardButton(text="🔙 Назад", callback_data="games")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=rows)

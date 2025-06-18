@@ -17,6 +17,10 @@ async def invite_friend_callback(callback: types.CallbackQuery) -> None:
 
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
+        if not user:
+            await callback.message.answer("Пользователь не найден.")
+            return
+        
         referral_link = f"https://t.me/{bot_username}?start={telegram_id}"
 
         referral_count = await get_referral_count(session, user.id)
@@ -24,7 +28,7 @@ async def invite_friend_callback(callback: types.CallbackQuery) -> None:
 
         text = (
             f"Приглашайте друзей и получайте 4.0 ⭐️ STARS за каждого друга! ⭐️\n\n"
-            f"Ваша ссылка:👉🏻 <code>{referral_link}</code>\n\n"
+            f"Ваша ссылка 👉🏻 <code>{referral_link}</code>\n\n"
         )
 
         if not referral_count:

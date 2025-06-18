@@ -3,14 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models.promo_code import PromoCode, PromoActivation
 from db.models.user import User
 from decimal import Decimal
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
-from utils.user_requests import ban_user, get_all_admins
+from utils.user_requests import ban_user, get_all_admins, get_user_by_telegram_id
 from aiogram import Bot
-import redis.asyncio as redis
+from services.redis_client import redis_client
 
 # Redis config
-redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 LOCK_TTL = 5  # сек
 VIP_CHAT_ID = -1002628175095
 ACTIVATION_KEY = "promo_activated:{code}:{user_id}"
@@ -33,7 +31,8 @@ async def is_user_in_chat(bot: Bot, user_id: int, chat_id: int) -> bool:
     except Exception:
         return False
 
-async def activate_promo(session: AsyncSession, user: User, code: str, bot: Bot) -> tuple[bool, str | None, Decimal | None]:
+async def activate_promo(session: AsyncSession, telegram_id: int, code: str, bot: Bot) -> tuple[bool, str | None, Decimal | None]:
+    user = await get_user_by_telegram_id(session, telegram_id)
     key = ACTIVATION_KEY.format(code=code, user_id=user.id)
     if await redis_client.get(key):
         return False, "Вы уже активировали этот промокод.", None
@@ -65,7 +64,7 @@ async def activate_promo(session: AsyncSession, user: User, code: str, bot: Bot)
                 for admin in admins:
                     await bot.send_message(
                         admin.telegram_id,
-                        text=f"{user.username} был забанен за ввод вип промо.",
+                        text=f"@{user.username} был забанен за ввод вип промо.",
                     )
                 return False, "Забанен за попытку использования VIP промо.", None
 

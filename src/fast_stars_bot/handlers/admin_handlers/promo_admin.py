@@ -124,10 +124,6 @@ async def add_promo_reward(message: types.Message, state: FSMContext) -> None:
             pass
     try:
         reward = Decimal(message.text)
-        if reward <= 0:
-            sent = await message.answer("Награда должна быть больше 0. Попробуйте снова.", reply_markup=back_to_promo_keyboard())
-            await state.update_data(last_bot_message_id=sent.message_id)
-            return
         await state.update_data(reward=reward)
     except InvalidOperation:
         sent = await message.answer("Награда должна быть числом. Попробуйте снова.", reply_markup=back_to_promo_keyboard())

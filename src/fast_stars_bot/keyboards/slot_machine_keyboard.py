@@ -1,21 +1,21 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def basketball_keyboard() -> InlineKeyboardMarkup:
+def slot_machine_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
         [
             InlineKeyboardButton(
-                text="Бросить за 1 ⭐", callback_data="basketball_bet_1"
+                text="Купить 1 спин 🎰", callback_data="slot_machine_1"
             )
         ],
         [
             InlineKeyboardButton(
-                text="Бросить за 2 ⭐", callback_data="basketball_bet_2"
+                text="Купить 5 спинов 🎰", callback_data="slot_machine_5"
             )
         ],
         [
             InlineKeyboardButton(
-                text="Бросить за 5 ⭐", callback_data="basketball_bet_5"
+                text="Купить 10 спинов 🎰", callback_data="slot_machine_10"
             )
         ],
     ]
@@ -25,9 +25,9 @@ def basketball_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
-def back_to_basketball_keyboard(bet) -> InlineKeyboardMarkup:
+def back_to_slot_machine_keyboard(spin) -> InlineKeyboardMarkup:
     inline_keyboard = [
-        [InlineKeyboardButton(text="Бросить ещё раз!", callback_data=f"basketball_bet_{bet}")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="basketball_game")],
+        [InlineKeyboardButton(text="Крутануть ещё раз!", callback_data=f"slot_machine_{spin}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="slot_machine")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

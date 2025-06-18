@@ -4,9 +4,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from decimal import Decimal
 from keyboards.x2game_keyboard import x2game_keyboard, play_x2game_again
-from keyboards.channels_keyboard import back_to_menu_keyboard
 from utils.user_requests import get_user_by_telegram_id
 from utils.x2game_requests import save_x2game_results
+from keyboards.games_keyboard import back_to_all_games_keyboard
 import random
 from utils.game_settings_requests import get_game_setting
 
@@ -36,7 +36,7 @@ async def x2_game_callback(callback: types.CallbackQuery, state: FSMContext) -> 
         "🕹️ Испытайте свою удачу🪄\n\n"
         f"💰 Ваш баланс: {user.stars} ⭐️\n"
         "Введите количество звёздочек, на которое хотите сыграть: 👇🏻",
-        reply_markup=back_to_menu_keyboard(),
+        reply_markup=back_to_all_games_keyboard(),
     )
 
 @router.message(X2GameState.waiting_for_bet, F.text.regexp(r"^\d+(\.\d+)?$"))

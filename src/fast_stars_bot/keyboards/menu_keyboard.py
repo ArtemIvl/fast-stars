@@ -20,11 +20,10 @@ def menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📊 Статистика", callback_data="stats")
         ],
         [
-            InlineKeyboardButton(text="🏀 Basketball Game", callback_data="basketball_game"),
-            InlineKeyboardButton(text="🎲 Cube Game", callback_data="cube_game"),
+            InlineKeyboardButton(text="🎮 Игры 🎮", callback_data="games")
         ],
         [
-            InlineKeyboardButton(text="🎮X2 Game🎮", callback_data="x2_game")
+            InlineKeyboardButton(text="🎁 Розыгрыш Stars 🎁", callback_data="giveaways")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

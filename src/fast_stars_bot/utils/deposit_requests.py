@@ -15,6 +15,15 @@ async def create_deposit(session: AsyncSession, user_id: int, stars: Decimal, to
     session.add(deposit)
     await session.commit()
 
+async def get_latest_pending_deposit(session: AsyncSession, user_id: int) -> Deposit | None:
+    result = await session.execute(
+        select(Deposit)
+        .where(Deposit.user_id == user_id, Deposit.status == DepositStatus.PENDING)
+        .order_by(Deposit.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
 async def confirm_deposit(session: AsyncSession, user_id: int, comment: str) -> Deposit | None:
     result = await session.execute(
         select(Deposit).where(Deposit.user_id == user_id, Deposit.comment == comment, Deposit.status == DepositStatus.PENDING)
@@ -28,16 +37,6 @@ async def confirm_deposit(session: AsyncSession, user_id: int, comment: str) -> 
 
         await session.commit()
     return deposit
-
-async def get_pending_deposit(session: AsyncSession, comment: str, user_id: int) -> Deposit | None:
-    result = await session.execute(
-        select(Deposit).where(
-            Deposit.comment == comment,
-            Deposit.status == DepositStatus.PENDING,
-            Deposit.user_id == user_id
-        )
-    )
-    return result.scalar_one_or_none()
 
 async def get_total_amount_deposited(session: AsyncSession) -> tuple[Decimal, Decimal]:
     result = await session.execute(

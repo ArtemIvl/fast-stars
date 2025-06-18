@@ -11,59 +11,57 @@ router = Router()
 def register_task_handlers(dp) -> None:
     dp.include_router(router)
 
+TASKS_HEADER = (
+    "<b>📌 Вкладка «Задания»</b>\n"
+    "В этой вкладке время от времени появляются новые задания. Они доступны ограниченное время — от 30 минут и дольше.\n\n"
+    "🔔 Чтобы не пропускать задания — заходите сюда почаще!\n\n"
+    "💎 А если хотите получать <b>автоматические уведомления о новых заданиях</b> — активируйте <b>VIP-пакет</b> в разделе <b>«Мой профиль» → «VIP-пакет»</b>."
+)
+
+async def send_tasks_message(callback: types.CallbackQuery, tasks, state: FSMContext) -> None:
+    if not tasks:
+        await callback.message.edit_text(
+            TASKS_HEADER,
+            parse_mode="HTML",
+            reply_markup=no_tasks_keyboard()
+        )
+        await state.update_data(tasks_to_show_ids=[])
+        return
+
+    await state.update_data(tasks_to_show_ids=[task.id for task in tasks])
+    try:
+        await callback.message.edit_text(
+            TASKS_HEADER,
+            parse_mode="HTML",
+            reply_markup=tasks_keyboard(tasks)
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            raise
+
 @router.callback_query(F.data == "tasks")
 async def tasks_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     telegram_id = callback.from_user.id
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
         tasks = await get_all_tasks(session)
-        bot = callback.bot
 
         tasks_to_show = []
         for task in tasks:
             completed = await is_task_completed(session, user.id, task.id)
-            subscribed = await is_user_subscribed_to_task(bot, telegram_id, task) if task.requires_subscription else None
-
             if task.requires_subscription:
+                subscribed = await is_user_subscribed_to_task(callback.bot, telegram_id, task)
                 if not subscribed:
                     tasks_to_show.append(task)
-            else:
-                if not completed:
-                    tasks_to_show.append(task)
+            elif not completed:
+                tasks_to_show.append(task)
 
-        if not tasks_to_show:
-            await callback.message.edit_text(
-                "<b>📌 Вкладка «Задания»</b>\n"
-                "В этой вкладке время от времени появляются новые задания. Они доступны ограниченное время — от 30 минут и дольше.\n\n"
-                "🔔 Чтобы не пропускать задания — заходите сюда почаще!\n\n"
-                "💎 А если хотите получать <b>автоматические уведомления о новых заданиях</b> — активируйте <b>VIP-пакет</b> в разделе <b>«Мой профиль» → «VIP-пакет»</b>.",
-                parse_mode="HTML",
-                reply_markup=no_tasks_keyboard()
-                )
-            return
-        
-        task_ids = [task.id for task in tasks_to_show]
-        await state.update_data(tasks_to_show_ids=task_ids)
+        await send_tasks_message(callback, tasks_to_show, state)
 
-        try:
-            await callback.message.edit_text(
-                "<b>📌 Вкладка «Задания»</b>\n"
-                "В этой вкладке время от времени появляются новые задания. Они доступны ограниченное время — от 30 минут и дольше.\n\n"
-                "🔔 Чтобы не пропускать задания — заходите сюда почаще!\n\n"
-                "💎 А если хотите получать <b>автоматические уведомления о новых заданиях</b> — активируйте <b>VIP-пакет</b> в разделе <b>«Мой профиль» → «VIP-пакет»</b>.",
-                parse_mode="HTML", 
-                reply_markup=tasks_keyboard(tasks_to_show)
-            )
-        except TelegramBadRequest as e:
-            if "message is not modified" in str(e):
-                pass
-            else:
-                raise
 
 @router.callback_query(F.data == "check_tasks")
 async def check_tasks_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     telegram_id = callback.from_user.id
-    bot = callback.bot
 
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
@@ -71,14 +69,12 @@ async def check_tasks_callback(callback: types.CallbackQuery, state: FSMContext)
         task_ids = data.get("tasks_to_show_ids", [])
         tasks = await get_tasks_by_ids(session, task_ids)
 
-        completed_now = []
-        already_rewarded = []
-        tasks_to_show = []
-        has_visible_required_task = any(t.requires_subscription for t in tasks)
+        completed_now, already_rewarded, tasks_to_show = [], [], []
+        has_visible_required_task = any(task.requires_subscription for task in tasks)
 
         for task in tasks:
             completed = await is_task_completed(session, user.id, task.id)
-            subscribed = await is_user_subscribed_to_task(bot, telegram_id, task) if task.requires_subscription else None
+            subscribed = await is_user_subscribed_to_task(callback.bot, telegram_id, task) if task.requires_subscription else None
 
             if task.requires_subscription:
                 if subscribed and not completed:
@@ -106,45 +102,21 @@ async def check_tasks_callback(callback: types.CallbackQuery, state: FSMContext)
             tasks_to_show = [t for t in tasks_to_show if t not in completed_now]
 
         # Формируем текст для поп-апа
-        text_parts = []
+        messages = []
         if completed_now:
-            text = "🎉 Вы выполнили задания:\n"
-            text += "\n".join(f"• {t.title} — +{t.reward:.2f} ⭐" for t in completed_now)
-            text_parts.append(text)
-
-        if already_rewarded:
-            text = "⚠️ За следующие задания вы уже получали награду ранее:\n"
-            text += "\n".join(f"• {t.title}" for t in already_rewarded)
-            text_parts.append(text)
-
-        if not text_parts:
-            await callback.answer("❗️ Вы не выполнили задания.", show_alert=True)
-        else:
-            await callback.answer("\n\n".join(text_parts), show_alert=True)
-
-        # Если остались задания для показа
-        if not tasks_to_show:
-            await callback.message.edit_text(
-                "<b>📌 Вкладка «Задания»</b>\n"
-                "В этой вкладке время от времени появляются новые задания. Они доступны ограниченное время — от 30 минут и дольше.\n\n"
-                "🔔 Чтобы не пропускать задания — заходите сюда почаще!\n\n"
-                "💎 А если хотите получать <b>автоматические уведомления о новых заданиях</b> — активируйте <b>VIP-пакет</b> в разделе <b>«Мой профиль» → «VIP-пакет»</b>.",
-                parse_mode="HTML",
-                reply_markup=no_tasks_keyboard()
+            msg = "🎉 Вы выполнили задания:\n" + "\n".join(
+                f"• {t.title} — +{t.reward:.2f} ⭐" for t in completed_now
             )
-            await state.update_data(tasks_to_show_ids=[])
+            messages.append(msg)
+        if already_rewarded:
+            msg = "⚠️ За следующие задания вы уже получали награду ранее:\n" + "\n".join(
+                f"• {t.title}" for t in already_rewarded
+            )
+            messages.append(msg)
+
+        if messages:
+            await callback.answer("\n\n".join(messages), show_alert=True)
         else:
-            await state.update_data(tasks_to_show_ids=[t.id for t in tasks_to_show])
-            try:
-                await callback.message.edit_text(
-                    "<b>📌 Вкладка «Задания»</b>\n"
-                    "В этой вкладке время от времени появляются новые задания. Они доступны ограниченное время — от 30 минут и дольше.\n\n"
-                    "🔔 Чтобы не пропускать задания — заходите сюда почаще!\n\n"
-                    "💎 А если хотите получать <b>автоматические уведомления о новых заданиях</b> — активируйте <b>VIP-пакет</b> в разделе <b>«Мой профиль» → «VIP-пакет»</b>.",
-                    parse_mode="HTML",
-                    reply_markup=tasks_keyboard(tasks_to_show)
-                )
-            except TelegramBadRequest as e:
-                if "message is not modified" in str(e):
-                    return
-                raise
+            await callback.answer("❗️ Вы не выполнили задания.", show_alert=True)
+
+        await send_tasks_message(callback, tasks_to_show, state)

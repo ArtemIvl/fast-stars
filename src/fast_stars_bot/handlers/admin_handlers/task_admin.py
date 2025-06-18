@@ -57,9 +57,9 @@ async def add_task_title(message: types.Message, state: FSMContext) -> None:
         except Exception:
             pass
     url = message.text.strip()
-    if not url.startswith("https://t.me/"):
+    if not url.startswith("https://"):
         sent = await message.answer(
-            "Ссылка должна начинаться с 'https://t.me/'. Пожалуйста, введите корректную ссылку:",
+            "Ссылка должна начинаться с 'https://. Пожалуйста, введите корректную ссылку:",
             reply_markup=back_to_tasks_keyboard()
         )
         await state.update_data(last_bot_message_id=sent.message_id)

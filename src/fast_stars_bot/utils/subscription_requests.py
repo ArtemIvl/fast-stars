@@ -5,8 +5,9 @@ from db.models.channel import Channel
 from db.models.subscription_log import SubscriptionLog
 from db.models.user import User
 from sqlalchemy import select
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from services.redis_client import redis_client
 
 async def resolve_chat_id(bot: Bot, channel: Channel) -> int | str | None:
     url_part = channel.link.strip().rstrip("/").split("/")[-1]
@@ -20,24 +21,32 @@ async def resolve_chat_id(bot: Bot, channel: Channel) -> int | str | None:
         # print(f"Error resolving chat ID for {channel.username}: {e}")
         return None
 
+async def check_channel_subscription(bot: Bot, telegram_id: int, channel: Channel):
+    try:
+        chat_id = await resolve_chat_id(bot, channel)
+        if not channel.requires_subscription:
+            return True
+        if chat_id is None:
+            return False
+
+        member = await bot.get_chat_member(chat_id=chat_id, user_id=telegram_id)
+        return member.status in ["member", "administrator", "creator"]
+    except TelegramBadRequest:
+        return False  # неверные данные о канале, но не пускаем
 
 
-async def is_user_subscribed_to_all(
-    bot: Bot, telegram_id: int, channels: list[Channel]
-) -> bool:
-    for channel in channels:
-        try:
-            chat_id = await resolve_chat_id(bot, channel)
-            if chat_id is None:
-                continue  # если не можем получить чат, просто пропускаем
-
-            member = await bot.get_chat_member(chat_id=chat_id, user_id=telegram_id)
-            if member.status not in ["member", "administrator", "creator"]:
-                return False
-        except TelegramBadRequest as e:
-            print(f"Can't check subscription for {channel.id}: {e}")
-            continue
-    return True
+async def is_user_subscribed_to_all(bot: Bot, telegram_id: int, channels: list[Channel]) -> bool:
+    cache_key = f"subs:{telegram_id}"
+    cached = await redis_client.get(cache_key)
+    if cached is not None:
+        return cached == "1"
+    
+    results = await asyncio.gather(
+        *(check_channel_subscription(bot, telegram_id, ch) for ch in channels)
+    )
+    all_subscribed = all(results)
+    await redis_client.set(cache_key, "1" if all_subscribed else "0", ex=120)  # 2 мин TTL
+    return all_subscribed
 
 
 async def reward_user_for_subscription(

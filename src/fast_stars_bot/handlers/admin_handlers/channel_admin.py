@@ -14,6 +14,7 @@ class AddChannelState(StatesGroup):
     waiting_for_name = State()
     waiting_for_username = State()
     waiting_for_link = State()
+    waiting_for_subscription_status = State()
 
 
 @channel_admin_router.callback_query(F.data == "manage_channels")
@@ -72,21 +73,44 @@ async def add_channel_link(message: types.Message, state: FSMContext) -> None:
             await message.bot.delete_message(message.chat.id, last_msg_id)
         except Exception:
             pass
-    if not message.text.startswith("https://t.me/"):
+    url = message.text.strip()
+    if not url.startswith("https://t.me/"):
         sent = await message.answer(
             "Ссылка должна начинаться с 'https://t.me/'. Пожалуйста, введите корректную ссылку:",
             reply_markup=back_to_channels_keyboard()
         )
         await state.update_data(last_bot_message_id=sent.message_id)
         return
+    await state.update_data(channel_link=url)
+    sent = await message.answer("Канал требует подписки? (да/нет):", reply_markup=back_to_channels_keyboard())
+    await state.update_data(last_bot_message_id=sent.message_id)
+    await state.set_state(AddChannelState.waiting_for_subscription_status)
+    
+@channel_admin_router.message(AddChannelState.waiting_for_subscription_status)
+async def add_channel_subscription_status(message: types.Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    last_msg_id = data.get("last_bot_message_id")
+    if last_msg_id:
+        try:
+            await message.bot.delete_message(message.chat.id, last_msg_id)
+        except Exception:
+            pass
+    subscription = message.text.strip().lower()
+    if subscription not in ["да", "нет"]:
+        sent = await message.answer("Пожалуйста, введите 'да' или 'нет'.", reply_markup=back_to_channels_keyboard())
+        await state.update_data(last_bot_message_id=sent.message_id)
+        return
+    await state.update_data(subscription=subscription)
 
+    data = await state.get_data()
     channel_name = data.get("channel_name")
     channel_username = data.get("channel_username")
-    channel_link = message.text
+    channel_link = data.get("channel_link")
+    requires_subscription = data.get("subscription") == "да"
 
     async with SessionLocal() as session:
         await add_channel(
-            session, name=channel_name, username=channel_username, link=channel_link
+            session, name=channel_name, username=channel_username, link=channel_link, requires_subscription=requires_subscription
         )
         channels = await get_all_channels(session)
         await message.answer("Канал был успешно добавлен!", reply_markup=manage_channels_keyboard(channels))

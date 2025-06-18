@@ -8,6 +8,7 @@ from utils.channel_requests import get_all_channels
 from utils.subscription_requests import is_user_subscribed_to_all
 from utils.user_requests import get_user_by_telegram_id
 from aiogram.fsm.context import FSMContext
+from services.redis_client import redis_client
 
 from keyboards.channels_keyboard import channels_keyboard
 
@@ -22,6 +23,20 @@ class SubscriptionRequiredMiddleware(BaseMiddleware):
         telegram_id = event.from_user.id
         state: FSMContext = data.get("state")
 
+        is_menu_trigger = (
+            isinstance(event, Message) and event.text in {"/menu", "⭐️ Меню", "/start"}
+        ) or (
+            isinstance(event, CallbackQuery) and event.data == "back"
+        ) or (
+            isinstance(event, CallbackQuery) and event.data == "check_subs"
+        ) 
+
+        if not is_menu_trigger:
+            return await handler(event, data)
+        
+        if isinstance(event, CallbackQuery) and event.data == "check_subs":
+            await redis_client.delete(f"subs:{telegram_id}")  # Удаляем кэш ДО проверки
+        
         async with SessionLocal() as session:
             channels = await get_all_channels(session)
 

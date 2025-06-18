@@ -25,8 +25,8 @@ htmlcov/
 # Mypy cache (если используешь)
 .mypy_cache/
 
-# Poetry lock (если ты его коммитишь, то не нужно)
-#poetry.lock
+# Системный файл MacOS
+.DS_Store
 
 # Пакеты и дистрибутивы
 build/

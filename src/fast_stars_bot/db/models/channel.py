@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -11,5 +11,6 @@ class Channel(Base):
     name = Column(String, nullable=False)
     username = Column(String, nullable=False, unique=True)
     link = Column(String, nullable=False, unique=True)
+    requires_subscription = Column(Boolean, default=False)
 
     subscribers = relationship("SubscriptionLog", back_populates="channel")

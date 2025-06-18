@@ -6,3 +6,4 @@ from .admin_tasks_keyboard import manage_tasks_keyboard, delete_tasks_keyboard, 
 from .admin_games_keyboard import manage_games_keyboard, back_to_games_keyboard
 from .admin_message_keyboard import audience_keyboard, time_choice_keyboard, back_to_message_keyboard
 from .admin_withdraw_keyboard import withdraw_info_keyboard, pending_withdraw_keyboard, back_to_withdrawal_keyboard
+from .admin_giveaways_keyboard import back_to_giveaways_keyboard, manage_giveaways_keyboard, giveaway_info_keyboard

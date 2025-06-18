@@ -30,4 +30,6 @@ class User(Base):
     referred_by = relationship("Referral", foreign_keys="[Referral.referral_id]", back_populates="referral", uselist=False)
     withdrawals = relationship("Withdrawal", back_populates="user")
     deposits = relationship("Deposit", back_populates="user")
+    giveaway_tickets = relationship("GiveawayTicket", back_populates="user")
+    slot_machine_logs = relationship("SlotMachineLog", back_populates="user")
 

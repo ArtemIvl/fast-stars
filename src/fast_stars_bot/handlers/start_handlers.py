@@ -11,6 +11,7 @@ from utils.user_requests import (add_user, allowed_phone_number,
                                  get_user_by_telegram_id, unban_user)
 from utils.referral_requests import (create_referral, has_referral, reward_for_referral)
 from aiogram.exceptions import TelegramForbiddenError
+from handlers.promo_handlers import show_promo_menu
 
 router = Router()
 
@@ -38,13 +39,33 @@ async def delete_message_after_delay(bot, chat_id, message_id, delay=30):
         print(f"Ошибка при удалении сообщения: {e}")
 
 
+async def send_welcome_messages(message: types.Message, user) -> None:
+    await message.answer("Добро пожаловать!", reply_markup=menu_button_keyboard())
+    await message.answer(
+        "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
+        "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
+        f"Баланс: {user.stars:.2f}⭐️</b>",
+        parse_mode="HTML",
+        reply_markup=menu_keyboard(),
+    )
+
+
 @router.message(F.text.startswith("/start"))
 async def cmd_start(message: types.Message, state: FSMContext) -> None:
+    await state.clear()
     telegram_id = message.from_user.id
-    username = message.from_user.username or "anonymous"
+    username = message.from_user.username
+    if not username:
+        await message.answer("❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start.")
+        return
+    
     referrer_id = None
-
     parts = message.text.split()
+
+    if len(parts) > 1 and parts[1] == "promo":
+        await show_promo_menu(message, state)
+        return
+    
     if len(parts) > 1:
         try:
             referrer_id = int(parts[1])
@@ -63,15 +84,7 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
         else:
             channels = await get_all_channels(session)
             await reward_user_for_subscription(session, message.bot, user, channels)
-
-            await message.answer("Добро пожаловать!", reply_markup=menu_button_keyboard())
-            await message.answer(
-                    "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
-                    "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
-                    f"Баланс: {user.stars:.2f}⭐️</b>",
-                    parse_mode="HTML",
-                    reply_markup=menu_keyboard(),
-                )
+            await send_welcome_messages(message, user)
 
 
 @router.message(F.contact)
@@ -114,29 +127,26 @@ async def handle_contact(message: types.Message, state: FSMContext) -> None:
                     asyncio.create_task(delete_message_after_delay(message.bot, referrer.telegram_id, sent.message_id))
                 except Exception as e:
                     print(f"Не удалось отправить сообщение пригласившему: {e}")
-        await message.answer("Добро пожаловать!", reply_markup=menu_button_keyboard())
-        await message.answer(
-                "<b>Чтобы получить больше ⭐️, выполняйте задания и приглашайте друзей!👥\n\n"
-                "‼️ За накрутку рефералов — БАН без выплат! ‼️\n\n"
-                f"Баланс: {user.stars:.2f}⭐️</b>",
-                parse_mode="HTML",
-                reply_markup=menu_keyboard(),
-            )
+                    
+        await send_welcome_messages(message, user)
         
 
 @router.callback_query(F.data == "check_subs")
 async def check_subs_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     telegram_id = callback.from_user.id
     username = callback.from_user.username or "anonymous"
+    if not username:
+        await callback.message.edit_text("❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start.")
+        return
 
     async with SessionLocal() as session:
         channels = await get_all_channels(session)
-        if not await is_user_subscribed_to_all(callback.bot, telegram_id, channels):
+        subscribed = await is_user_subscribed_to_all(callback.bot, telegram_id, channels)
+        if not subscribed:
             await callback.answer("❗Вы ещё не подписались на все каналы.", show_alert=True)
             return
         
         user = await get_user_by_telegram_id(session, telegram_id)
-
         if user:
             await reward_user_for_subscription(session, callback.bot, user, channels)
             await callback.message.edit_text(

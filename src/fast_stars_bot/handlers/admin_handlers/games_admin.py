@@ -10,6 +10,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from utils.game_settings_requests import get_game_setting, update_game_setting
 from utils.deposit_requests import get_total_amount_deposited
+from utils.slot_machine_requests import get_total_slot_spins, get_total_slot_winnings
 from decimal import Decimal, InvalidOperation
 
 class AdminGameSettingsState(StatesGroup):
@@ -31,6 +32,8 @@ async def manage_games_callback(callback: types.CallbackQuery, state: FSMContext
         basketball_stats = await get_basketball_stats(session, basketball_multiplier)
         total_vip_users = len(await get_all_vip_users(session))
         total_stars_deposited, total_ton_deposited = await get_total_amount_deposited(session)
+        total_spins = await get_total_slot_spins(session)
+        total_slot_winnings = await get_total_slot_winnings(session)
 
         text = (
             "<b>🎮 Статистика игр</b>\n\n"
@@ -51,6 +54,10 @@ async def manage_games_callback(callback: types.CallbackQuery, state: FSMContext
             f"• Потеряно: <code>{cube_game_stats[2]:.2f}⭐</code>\n"
             f"• Комиссия бота: <code>{cube_game_stats[3]:.2f}⭐</code>\n"
             f"• Текущая комиссия: <b>{cube_commission}%</b>\n\n"
+
+            "🎰 <b>Слот машина</b>:\n"
+            f"• Всего спинов: <code>{total_spins}</code>\n"
+            f"• Выиграно: <code>{total_slot_winnings}⭐</code>\n\n"
 
             f"Онлайн за сегодня: <code>{bonus_today}</code>\n"
             f"Всего бонусов получено: <code>{total_bonus:.2f}⭐</code>\n"

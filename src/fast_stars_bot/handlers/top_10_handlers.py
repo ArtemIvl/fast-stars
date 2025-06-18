@@ -16,15 +16,14 @@ async def top_10_callback(callback: types.CallbackQuery) -> None:
     async with SessionLocal() as session:
         top_users = await get_top_10_users(session)
 
-    text = "<b>Топ-10 пользователей по звёздному балансу ⭐️</b>\n\n"
     medals = ["🥇", "🥈", "🥉"]
+    lines = ["<b>Топ-10 пользователей по звёздному балансу ⭐️</b>\n"]
 
     for idx, user in enumerate(top_users, start=1):
         username = f"@{user.username}" if user.username else f"ID:{user.telegram_id}"
-        balance = user.stars
         prefix = medals[idx - 1] if idx <= 3 else f"{idx})"
-        text += f"{prefix} {username} - {balance:.2f}⭐️\n"
+        lines.append(f"{prefix} {username} — {user.stars:.2f}⭐️")
 
-    text = text.strip()
+    text = "\n".join(lines)
 
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_menu_keyboard())

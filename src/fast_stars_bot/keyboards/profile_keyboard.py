@@ -4,6 +4,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 def profile_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
         [
+            InlineKeyboardButton(text="❗️Правила/Гайд❗️", url="https://telegra.ph/Gajd-po-FastStarskak-zarabatyvat-zvyozdy-izbezhat-bana-i-vyvodit-nagrady-06-12")
+        ],
+        [
             InlineKeyboardButton(text="🏆 VIP-пакет 🏆", callback_data="vip_package")
         ],
         [

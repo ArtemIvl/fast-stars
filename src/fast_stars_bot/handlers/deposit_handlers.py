@@ -8,7 +8,7 @@ from decimal import Decimal
 import random
 from config.settings import settings
 from utils.tonapi import check_deposit_received
-from utils.deposit_requests import create_deposit, confirm_deposit, get_pending_deposit
+from utils.deposit_requests import create_deposit, confirm_deposit, get_latest_pending_deposit
 
 router = Router()
 
@@ -47,8 +47,13 @@ async def handle_deposit_selection(callback: types.CallbackQuery, state: FSMCont
         return
     
     comment_code = random.randint(1000, 9999)
+    telegram_id = callback.from_user.id
 
-    await state.update_data(stars=amount, ton=ton_amount, comment=comment_code)
+    async with SessionLocal() as session:
+        user = await get_user_by_telegram_id(session, telegram_id)
+        await create_deposit(session, user.id, amount, ton_amount, str(comment_code))
+
+    await state.update_data(comment=str(comment_code))
     await state.set_state(DepositState.waiting_for_payment_confirmation)
 
     text = (
@@ -62,32 +67,29 @@ async def handle_deposit_selection(callback: types.CallbackQuery, state: FSMCont
 
 @router.callback_query(DepositState.waiting_for_payment_confirmation, F.data == "confirm_deposit")
 async def confirm_deposit_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
-    data = await state.get_data()
-    stars = data.get("stars")
-    ton = Decimal(data.get("ton"))
-    comment = str(data.get("comment"))
     telegram_id = callback.from_user.id
 
     await callback.message.answer("⏳ Проверяем поступление средств...")
 
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
-        existing_deposit = await get_pending_deposit(session, comment, user.id)
-        if not existing_deposit:
-            await create_deposit(session, user.id, stars, ton, comment)
+        deposit = await get_latest_pending_deposit(session, user.id)
+        if not deposit:
+            await callback.message.answer("⚠️ Не найден активный депозит.")
+            await state.clear()
+            return
 
-    ton_received = await check_deposit_received(
-        expected_amount=ton,
-        expected_comment=comment,
-    )
+        ton_received = await check_deposit_received(
+            expected_amount=deposit.ton,
+            expected_comment=deposit.comment,
+        )
 
-    async with SessionLocal() as session:
         if ton_received:
-            deposit = await confirm_deposit(session, user.id, comment)
+            deposit = await confirm_deposit(session, user.id, deposit.comment)
             if deposit:
                 await callback.message.answer(
                     f"✅ Поступило {ton_received}, благодарим за покупку!\n\n"
-                    f"{stars}⭐️ зачислено на ваш баланс."
+                    f"{deposit.stars}⭐️ зачислено на ваш баланс."
                 )
 
                 admins = await get_all_admins(session)
@@ -101,9 +103,8 @@ async def confirm_deposit_callback(callback: types.CallbackQuery, state: FSMCont
                         f"📎 Комментарий: <code>{deposit.comment}</code>",
                         parse_mode="HTML"
                     )
-                    await state.clear()
             else:
-                await callback.message.answer("⚠️ Не удалось найти депозит в ожидании подтверждения.")
-                await state.clear()
+                await callback.message.answer("⚠️ Не удалось подтвердить депозит.")
         else:
             await callback.message.answer("❌ Средства пока не поступили. Попробуйте ещё раз через несколько минут.", reply_markup=confirm_payment_keyboard())
+    await state.clear()

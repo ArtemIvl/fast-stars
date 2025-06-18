@@ -37,11 +37,9 @@ class BanCheckMiddleware(BaseMiddleware):
                     payload=f"unban:{telegram_id}",
                     provider_token="",
                     currency="XTR",
-                    prices=[types.LabeledPrice(label="Разблокировка", amount=1)],
+                    prices=[types.LabeledPrice(label="Разблокировка", amount=99)],
                     start_parameter="unban",
                 )
-
-                print(f'gay1')
 
                 async def delete_invoice_later():
                     await asyncio.sleep(15)
