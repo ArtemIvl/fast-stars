@@ -1,8 +1,10 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Boolean, Numeric
-from sqlalchemy.orm import relationship
 from decimal import Decimal
 
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, String
+from sqlalchemy.orm import relationship
+
 from .base import Base
+
 
 class Task(Base):
     __tablename__ = "tasks"

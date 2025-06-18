@@ -1,6 +1,8 @@
 import asyncio
+
 from db.session import SessionLocal
 from utils.cube_requests import delete_old_canceled_games
+
 
 async def cleanup_old_canceled_games(interval_seconds: int = 86400) -> None:
     while True:

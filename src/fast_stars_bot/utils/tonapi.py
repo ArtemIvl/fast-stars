@@ -1,13 +1,17 @@
-import httpx
-from typing import Optional
-from config.settings import settings
 from decimal import Decimal
+from typing import Optional
 
-API_KEY=settings.API_KEY
-TON_API_URL="https://tonapi.io/v2"
-TON_WALLET_ADDRESS=settings.TON_WALLET_ADDRESS
+import httpx
+from config.settings import settings
 
-async def check_deposit_received(expected_amount: Decimal, expected_comment: str) -> Optional[Decimal]:
+API_KEY = settings.API_KEY
+TON_API_URL = "https://tonapi.io/v2"
+TON_WALLET_ADDRESS = settings.TON_WALLET_ADDRESS
+
+
+async def check_deposit_received(
+    expected_amount: Decimal, expected_comment: str
+) -> Optional[Decimal]:
     headers = {
         "Authorization": f"Bearer {API_KEY}",
     }
@@ -17,13 +21,13 @@ async def check_deposit_received(expected_amount: Decimal, expected_comment: str
             response = await client.get(
                 f"{TON_API_URL}/blockchain/accounts/{TON_WALLET_ADDRESS}/transactions",
                 headers=headers,
-                params={"limit": 20}
+                params={"limit": 20},
             )
         response.raise_for_status()
     except httpx.RequestError as e:
         print(f"Ошибка при обращении к TonAPI: {e}")
         return None
-    
+
     data = response.json()
     txs = data.get("transactions", [])
     for tx in txs:
@@ -45,5 +49,5 @@ async def check_deposit_received(expected_amount: Decimal, expected_comment: str
 
             if rounded_actual >= rounded_expected:
                 return amount
-            
+
     return None

@@ -27,7 +27,11 @@ def basketball_keyboard() -> InlineKeyboardMarkup:
 
 def back_to_basketball_keyboard(bet) -> InlineKeyboardMarkup:
     inline_keyboard = [
-        [InlineKeyboardButton(text="Бросить ещё раз!", callback_data=f"basketball_bet_{bet}")],
+        [
+            InlineKeyboardButton(
+                text="Бросить ещё раз!", callback_data=f"basketball_bet_{bet}"
+            )
+        ],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="basketball_game")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

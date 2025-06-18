@@ -35,6 +35,7 @@ def manage_channels_keyboard(channels: list[Channel]) -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def channel_info_keyboard(channel: Channel) -> InlineKeyboardMarkup:
     inline_keyboard = [
         [
@@ -42,23 +43,17 @@ def channel_info_keyboard(channel: Channel) -> InlineKeyboardMarkup:
                 text="Удалить канал", callback_data=f"del_channel_{channel.id}"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад", callback_data="manage_channels"
-            )
-        ],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="manage_channels")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def back_to_channels_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад", callback_data="manage_channels"
-            )
-        ]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="manage_channels")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
 
 def delete_channels_keyboard(channels: list[Channel]) -> InlineKeyboardMarkup:
     inline_keyboard = [

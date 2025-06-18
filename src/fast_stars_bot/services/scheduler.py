@@ -1,10 +1,14 @@
 from datetime import date
 
 from aiogram import Bot
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNotFound,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from db.session import SessionLocal
-from aiogram.exceptions import TelegramForbiddenError, TelegramNotFound, TelegramBadRequest
 from pytz import timezone
 from utils.daily_bonus_requests import get_last_claim
 from utils.vip_requests import get_all_vip_users
@@ -43,5 +47,7 @@ async def send_daily_reminders(bot: Bot) -> None:
                     print(f"Некорректный запрос Telegram для {user.telegram_id}: {e}")
                     continue
                 except Exception as e:
-                    print(f"Неизвестная ошибка при отправке пользователю {user.telegram_id}: {e}")
+                    print(
+                        f"Неизвестная ошибка при отправке пользователю {user.telegram_id}: {e}"
+                    )
                     continue

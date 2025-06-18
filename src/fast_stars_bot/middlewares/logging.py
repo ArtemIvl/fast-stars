@@ -1,10 +1,12 @@
 import logging
 import time
+from typing import Any, Awaitable, Callable, Dict
+
 from aiogram import BaseMiddleware
-from aiogram.types import Update, Message, CallbackQuery
-from typing import Callable, Awaitable, Dict, Any
+from aiogram.types import CallbackQuery, Message, Update
 
 logger = logging.getLogger("bot.timing")
+
 
 class LoggingMiddleware(BaseMiddleware):
     async def __call__(

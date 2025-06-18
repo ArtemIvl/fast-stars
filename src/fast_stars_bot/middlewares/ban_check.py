@@ -1,14 +1,17 @@
-from aiogram import BaseMiddleware, types, Router, F
-from aiogram.types import CallbackQuery, Message
-from typing import Awaitable, Callable, Dict, Any
-from db.session import SessionLocal
 import asyncio
+from typing import Any, Awaitable, Callable, Dict
+
+from aiogram import BaseMiddleware, F, Router, types
+from aiogram.types import CallbackQuery, Message
+from db.session import SessionLocal
 from utils.user_requests import get_user_by_telegram_id
 
 router = Router()
 
+
 def register_ban_payment_handler(dp) -> None:
     dp.include_router(router)
+
 
 class BanCheckMiddleware(BaseMiddleware):
     async def __call__(
@@ -23,10 +26,16 @@ class BanCheckMiddleware(BaseMiddleware):
             user = await get_user_by_telegram_id(session, telegram_id)
 
             if user and user.is_banned:
-                if isinstance(event, Message) and getattr(event, "successful_payment", None):
+                if isinstance(event, Message) and getattr(
+                    event, "successful_payment", None
+                ):
                     return await handler(event, data)
                 text = "❗Вы были заблокированы. Чтобы вернуть доступ, оплатите 99⭐️ через Telegram Stars."
-                chat_id = event.message.chat.id if isinstance(event, types.CallbackQuery) else event.chat.id
+                chat_id = (
+                    event.message.chat.id
+                    if isinstance(event, types.CallbackQuery)
+                    else event.chat.id
+                )
 
                 await event.bot.send_message(chat_id, text)
 

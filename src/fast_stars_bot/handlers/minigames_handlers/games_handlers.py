@@ -4,8 +4,10 @@ from keyboards.games_keyboard import games_keyboard
 
 router = Router()
 
+
 def register_games_handlers(dp) -> None:
     dp.include_router(router)
+
 
 @router.callback_query(F.data == "games")
 async def games_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -16,7 +18,5 @@ async def games_callback(callback: types.CallbackQuery, state: FSMContext) -> No
         "Выбирай игру, которая тебе больше по душе, и начинай прямо сейчас!👇🏻"
     )
     await callback.message.edit_text(
-        text=text,
-        parse_mode="HTML",
-        reply_markup=games_keyboard()
+        text=text, parse_mode="HTML", reply_markup=games_keyboard()
     )

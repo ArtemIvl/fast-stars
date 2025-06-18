@@ -1,25 +1,36 @@
-from aiogram import Router, F, types
 import asyncio
+from decimal import Decimal, InvalidOperation
+
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from db.session import SessionLocal
-from utils.user_requests import get_user_by_telegram_id, get_all_admins, has_previous_withdrawals
-from utils.withdrawal_requests import create_withdrawal_request, get_withdrawal_by_id
-from decimal import Decimal, InvalidOperation
-from keyboards.withdrawal_keyboard import withdrawal_keyboard, back_to_withdrawal_keyboard
-from keyboards.profile_keyboard import back_to_profile_keyboard
-from keyboards.admin_keyboards import withdraw_info_keyboard
 from handlers.admin_handlers.withdraw_admin import generate_detailed_withdraw_text
+from keyboards.admin_keyboards import withdraw_info_keyboard
+from keyboards.profile_keyboard import back_to_profile_keyboard
+from keyboards.withdrawal_keyboard import (
+    back_to_withdrawal_keyboard,
+    withdrawal_keyboard,
+)
+from utils.user_requests import (
+    get_all_admins,
+    get_user_by_telegram_id,
+    has_previous_withdrawals,
+)
+from utils.withdrawal_requests import create_withdrawal_request, get_withdrawal_by_id
 
 router = Router()
 
+
 def register_withdrawal_handlers(dp) -> None:
     dp.include_router(router)
+
 
 class WithdrawalStates(StatesGroup):
     waiting_for_amount = State()
     waiting_for_swap_amount = State()
     waiting_for_ton_address = State()
+
 
 def calculate_commission(amount: Decimal) -> int:
     if amount >= 150:
@@ -30,6 +41,7 @@ def calculate_commission(amount: Decimal) -> int:
         return 5
     return -1
 
+
 async def notify_admins(session, withdrawal, user, bot):
     admins = await get_all_admins(session)
     detailed_text = await generate_detailed_withdraw_text(session, withdrawal, user)
@@ -38,8 +50,9 @@ async def notify_admins(session, withdrawal, user, bot):
             admin.telegram_id,
             detailed_text,
             parse_mode="HTML",
-            reply_markup=withdraw_info_keyboard(withdrawal.id, user.id)
+            reply_markup=withdraw_info_keyboard(withdrawal.id, user.id),
         )
+
 
 @router.callback_query(F.data == "withdraw")
 async def withdrawal_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -58,11 +71,14 @@ async def withdrawal_callback(callback: types.CallbackQuery, state: FSMContext) 
         f"💡 Комиссия списывается <b>только с баланса Telegram Stars</b>, а не с игрового баланса звёзд.</blockquote>\n\n"
         f"Выберите нужный вариант ниже! 👇🏻",
         parse_mode="HTML",
-        reply_markup=withdrawal_keyboard()
+        reply_markup=withdrawal_keyboard(),
     )
 
+
 @router.callback_query(F.data == "withdraw_stars")
-async def withdraw_stars_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
+async def withdraw_stars_callback(
+    callback: types.CallbackQuery, state: FSMContext
+) -> None:
     await state.clear()
     telegram_id = callback.from_user.id
     async with SessionLocal() as session:
@@ -75,16 +91,19 @@ async def withdraw_stars_callback(callback: types.CallbackQuery, state: FSMConte
             return
         await callback.message.edit_text(
             "Введите сумму для вывода (от 50.0 ⭐️):",
-            reply_markup=back_to_withdrawal_keyboard()
+            reply_markup=back_to_withdrawal_keyboard(),
         )
         await state.set_state(WithdrawalStates.waiting_for_amount)
 
+
 @router.callback_query(F.data == "withdraw_ton")
-async def withdraw_ton_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
+async def withdraw_ton_callback(
+    callback: types.CallbackQuery, state: FSMContext
+) -> None:
     await state.clear()
     telegram_id = callback.from_user.id
     async with SessionLocal() as session:
-        user = await get_user_by_telegram_id(session,telegram_id)
+        user = await get_user_by_telegram_id(session, telegram_id)
         if user.stars < 150:
             await callback.answer(
                 "Вывод доступен от 150.0 ⭐️",
@@ -93,9 +112,10 @@ async def withdraw_ton_callback(callback: types.CallbackQuery, state: FSMContext
             return
         await callback.message.edit_text(
             "Введите сумму для вывода (от 150.0 ⭐️):",
-            reply_markup=back_to_withdrawal_keyboard()
+            reply_markup=back_to_withdrawal_keyboard(),
         )
         await state.set_state(WithdrawalStates.waiting_for_swap_amount)
+
 
 @router.message(WithdrawalStates.waiting_for_swap_amount)
 async def handle_swap_amount(message: types.Message, state: FSMContext) -> None:
@@ -108,10 +128,11 @@ async def handle_swap_amount(message: types.Message, state: FSMContext) -> None:
         await state.set_state(WithdrawalStates.waiting_for_ton_address)
         await message.answer(
             "Введите адрес TON-кошелька для вывода:",
-            reply_markup=back_to_withdrawal_keyboard()
+            reply_markup=back_to_withdrawal_keyboard(),
         )
     except (ValueError, InvalidOperation):
         await message.answer("Пожалуйста, введите корректную сумму для вывода.")
+
 
 @router.message(WithdrawalStates.waiting_for_ton_address)
 async def handle_ton_address(message: types.Message, state: FSMContext) -> None:
@@ -126,16 +147,18 @@ async def handle_ton_address(message: types.Message, state: FSMContext) -> None:
             if user.stars < amount:
                 await message.answer("Недостаточно звёзд для вывода.")
                 return
-            
-            withdrawal_id = await create_withdrawal_request(session, user.id, amount, ton_address)
+
+            withdrawal_id = await create_withdrawal_request(
+                session, user.id, amount, ton_address
+            )
             withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
             await notify_admins(session, withdrawal, user, message.bot)
-        
+
         await message.answer(
             "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
             "Ожидайте подтверждения заявки в течение <b>24 часов</b>🤝",
             parse_mode="HTML",
-            reply_markup=back_to_profile_keyboard()
+            reply_markup=back_to_profile_keyboard(),
         )
         await state.clear()
     except ValueError:
@@ -146,6 +169,9 @@ async def handle_ton_address(message: types.Message, state: FSMContext) -> None:
 async def handle_withdrawal_amount(message: types.Message, state: FSMContext) -> None:
     try:
         amount = Decimal(message.text)
+        if amount < 50:
+            await message.answer("Минимальная сумма вывода 150.0 ⭐️.")
+            return
     except (ValueError, InvalidOperation):
         await message.answer("Пожалуйста, введите корректную сумму для вывода.")
         return
@@ -159,17 +185,16 @@ async def handle_withdrawal_amount(message: types.Message, state: FSMContext) ->
         if commission == -1:
             await message.answer("Минимальная сумма вывода 50.0 ⭐️.")
             return
-        
+
         if commission > 0:
-            await state.update_data({
-                "withdraw_amount": str(amount),
-                "commission": commission
-            })
+            await state.update_data(
+                {"withdraw_amount": str(amount), "commission": commission}
+            )
             await message.answer(
                 f"Так как вы уже не в первый раз выводите ⭐️, необходимо оплатить комиссию от 3 до 5⭐️👇🏻\n"
                 f"<blockquote>Не забывайте, что вывод от 150⭐️ — полностью <b>бесплатный</b>.</blockquote>",
                 parse_mode="HTML",
-                reply_markup=back_to_withdrawal_keyboard()
+                reply_markup=back_to_withdrawal_keyboard(),
             )
 
             invoice = await message.bot.send_invoice(
@@ -178,7 +203,7 @@ async def handle_withdrawal_amount(message: types.Message, state: FSMContext) ->
                 description=f"Комиссия за вывод {amount:.2f}⭐️",
                 payload=f"withdraw_commission:{message.from_user.id}",
                 provider_token="",
-                currency="XTR", 
+                currency="XTR",
                 prices=[types.LabeledPrice(label="Комиссия", amount=commission)],
                 start_parameter="withdraw",
             )
@@ -188,26 +213,28 @@ async def handle_withdrawal_amount(message: types.Message, state: FSMContext) ->
             async def delete_invoice_later():
                 await asyncio.sleep(15)
                 try:
-                    await message.bot.delete_message(message.from_user.id, invoice.message_id)
+                    await message.bot.delete_message(
+                        message.from_user.id, invoice.message_id
+                    )
                 except Exception:
                     pass
-                
+
             asyncio.create_task(delete_invoice_later())
             return
-        
+
         if user.stars < amount:
             await message.answer("Недостаточно звёзд для вывода.")
             return
-        
+
         withdrawal_id = await create_withdrawal_request(session, user.id, amount)
         withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
         await notify_admins(session, withdrawal, user, message.bot)
-    
+
     await message.answer(
         "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
         "Ожидайте подтверждения заявки в течение <b>24 часов</b>🤝",
         parse_mode="HTML",
-        reply_markup=back_to_profile_keyboard()
+        reply_markup=back_to_profile_keyboard(),
     )
     await state.clear()
 
@@ -215,12 +242,17 @@ async def handle_withdrawal_amount(message: types.Message, state: FSMContext) ->
 @router.pre_checkout_query(lambda q: True)
 async def process_checkout(pre_checkout_query: types.PreCheckoutQuery) -> None:
     await pre_checkout_query.bot.answer_pre_checkout_query(
-        pre_checkout_query.id,
-        ok=True
+        pre_checkout_query.id, ok=True
     )
 
-@router.message(F.successful_payment, F.successful_payment.invoice_payload.startswith("withdraw_commission:"))
-async def successful_withdraw_payment(message: types.Message, state: FSMContext) -> None:
+
+@router.message(
+    F.successful_payment,
+    F.successful_payment.invoice_payload.startswith("withdraw_commission:"),
+)
+async def successful_withdraw_payment(
+    message: types.Message, state: FSMContext
+) -> None:
     data = await state.get_data()
     amount = Decimal(data["withdraw_amount"])
     telegram_id = message.from_user.id
@@ -230,7 +262,7 @@ async def successful_withdraw_payment(message: types.Message, state: FSMContext)
         if user.stars < amount:
             await message.answer("Недостаточно звёзд для вывода.")
             return
-        
+
         withdrawal_id = await create_withdrawal_request(session, user.id, amount)
         withdrawal = await get_withdrawal_by_id(session, withdrawal_id)
         admins = await get_all_admins(session)
@@ -242,13 +274,11 @@ async def successful_withdraw_payment(message: types.Message, state: FSMContext)
                 parse_mode="HTML",
                 reply_markup=withdraw_info_keyboard(withdrawal_id, user.id),
             )
-    
+
     await message.answer(
         "<b>✅ Запрос на вывод звёзд успешно отправлен!</b>\n\n"
         "Ожидайте подтверждения заявки в течение <b>24 часов</b>🤝",
         parse_mode="HTML",
-        reply_markup=back_to_profile_keyboard()
+        reply_markup=back_to_profile_keyboard(),
     )
     await state.clear()
-
-

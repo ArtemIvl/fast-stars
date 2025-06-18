@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+
 def manage_promo_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
         [
@@ -18,17 +19,17 @@ def manage_promo_keyboard() -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def back_to_promo_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад", callback_data="manage_promocodes"
-            )
-        ]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="manage_promocodes")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
-def promo_pages_keyboard(promo_code: str, current_page: int, total_pages: int) -> InlineKeyboardMarkup:
+
+def promo_pages_keyboard(
+    promo_code: str, current_page: int, total_pages: int
+) -> InlineKeyboardMarkup:
     pagination_buttons = []
     if current_page > 1:
         pagination_buttons.append(

@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from db.models.task import Task
 
+
 def manage_tasks_keyboard(tasks: list[Task]) -> InlineKeyboardMarkup:
     if not tasks:
         inline_keyboard = [
@@ -34,6 +35,7 @@ def manage_tasks_keyboard(tasks: list[Task]) -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def task_info_keyboard(task: Task) -> InlineKeyboardMarkup:
     inline_keyboard = [
         [
@@ -41,13 +43,10 @@ def task_info_keyboard(task: Task) -> InlineKeyboardMarkup:
                 text="Удалить задание", callback_data=f"del_task_{task.id}"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад", callback_data="manage_tasks"
-            )
-        ],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="manage_tasks")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
 
 def delete_tasks_keyboard(tasks: list[Task]) -> InlineKeyboardMarkup:
     inline_keyboard = [
@@ -63,13 +62,9 @@ def delete_tasks_keyboard(tasks: list[Task]) -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def back_to_tasks_keyboard() -> InlineKeyboardMarkup:
     inline_keyboard = [
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад", callback_data="manage_tasks"
-            )
-        ]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="manage_tasks")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-

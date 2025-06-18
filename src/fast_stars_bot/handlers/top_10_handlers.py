@@ -1,8 +1,7 @@
 from aiogram import F, Router, types
 from db.session import SessionLocal
-from utils.user_requests import get_top_10_users
-
 from keyboards.channels_keyboard import back_to_menu_keyboard
+from utils.user_requests import get_top_10_users
 
 router = Router()
 
@@ -26,4 +25,6 @@ async def top_10_callback(callback: types.CallbackQuery) -> None:
 
     text = "\n".join(lines)
 
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_menu_keyboard())
+    await callback.message.edit_text(
+        text, parse_mode="HTML", reply_markup=back_to_menu_keyboard()
+    )

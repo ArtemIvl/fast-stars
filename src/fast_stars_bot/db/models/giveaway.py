@@ -1,7 +1,10 @@
-from sqlalchemy import Column, DateTime, Integer, Numeric, Boolean, String, ForeignKey
 from datetime import timezone
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
+
 from .base import Base
+
 
 class Giveaway(Base):
     __tablename__ = "giveaways"
@@ -13,6 +16,7 @@ class Giveaway(Base):
     is_finished = Column(Boolean, nullable=False, default=False)
     prize_pool = Column(Numeric(10, 2), nullable=False)
     channel_link = Column(String)
+    username = Column(String)
     num_of_winners = Column(Integer, nullable=False)
 
     tickets = relationship("GiveawayTicket", back_populates="giveaway")

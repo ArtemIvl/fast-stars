@@ -1,9 +1,9 @@
 from aiogram import F, Router, types
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
 from db.session import SessionLocal
 from keyboards.menu_keyboard import menu_keyboard
 from utils.user_requests import get_user_by_telegram_id
-from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramBadRequest
 
 router = Router()
 
@@ -19,6 +19,7 @@ def get_menu_text(user) -> str:
         f"Баланс: {user.stars:.2f}⭐️</b>"
     )
 
+
 @router.message(F.text.in_({"/menu", "⭐️ Меню"}))
 async def menu_callback(message: types.Message, state: FSMContext) -> None:
     await state.clear()
@@ -31,6 +32,7 @@ async def menu_callback(message: types.Message, state: FSMContext) -> None:
         parse_mode="HTML",
         reply_markup=menu_keyboard(),
     )
+
 
 @router.callback_query(F.data == "back")
 async def back_menu_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -50,4 +52,3 @@ async def back_menu_callback(callback: types.CallbackQuery, state: FSMContext) -
             pass
         else:
             raise
-

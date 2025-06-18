@@ -23,11 +23,7 @@ def admin_keyboard() -> InlineKeyboardMarkup:
                 text="Управление промокодами", callback_data="manage_promocodes"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="Управление играми", callback_data="manage_games"
-            )
-        ],
+        [InlineKeyboardButton(text="Управление играми", callback_data="manage_games")],
         [
             InlineKeyboardButton(
                 text="Отправить сообщение", callback_data="send_message"
@@ -42,16 +38,11 @@ def admin_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text="Управление розыгрышами", callback_data="manage_giveaways"
             )
-        ]
+        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
+
 def admin_back_keyboard() -> InlineKeyboardMarkup:
-    inline_keyboard = [
-        [
-            InlineKeyboardButton(
-                text="Назад", callback_data="back_admin"
-            )
-        ]
-    ]
+    inline_keyboard = [[InlineKeyboardButton(text="Назад", callback_data="back_admin")]]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

@@ -1,15 +1,20 @@
-from sqlalchemy import select, func, distinct
-from sqlalchemy.ext.asyncio import AsyncSession
-from db.models.user import User
-from db.models.referral import Referral
-from db.models.task import TaskCompletion, Task
 from datetime import date
-from db.models.daily_bonus_claim import DailyBonusClaim
 
-async def create_referral(session: AsyncSession, referral_id: int, referrer_id: int) -> None:
+from db.models.daily_bonus_claim import DailyBonusClaim
+from db.models.referral import Referral
+from db.models.task import Task, TaskCompletion
+from db.models.user import User
+from sqlalchemy import distinct, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def create_referral(
+    session: AsyncSession, referral_id: int, referrer_id: int
+) -> None:
     referral = Referral(referral_id=referral_id, referrer_id=referrer_id)
     session.add(referral)
     await session.commit()
+
 
 async def has_referral(session: AsyncSession, referral_id: int) -> bool:
     result = await session.execute(
@@ -17,23 +22,36 @@ async def has_referral(session: AsyncSession, referral_id: int) -> bool:
     )
     return result.scalars().first() is not None
 
+
 async def reward_for_referral(session: AsyncSession, user: User) -> None:
     user.stars += 4
     await session.commit()
 
+
 async def get_referral_count(session: AsyncSession, user_id: int) -> int:
     result = await session.execute(
-        select(func.count()).select_from(Referral).where(Referral.referrer_id == user_id)
+        select(func.count())
+        .select_from(Referral)
+        .where(Referral.referrer_id == user_id)
     )
     return result.scalar_one()
 
+
 async def get_referrals(session: AsyncSession, referrer_id: int) -> list[User]:
     result = await session.execute(
-        select(User).join(Referral, Referral.referral_id == User.id).where(Referral.referrer_id == referrer_id)
+        select(User)
+        .join(Referral, Referral.referral_id == User.id)
+        .where(Referral.referrer_id == referrer_id)
     )
     return result.scalars().all()
 
-async def get_referrals_page(session: AsyncSession, referrer_id: int, page: int = 1, per_page: int = 10,) -> list[User]:
+
+async def get_referrals_page(
+    session: AsyncSession,
+    referrer_id: int,
+    page: int = 1,
+    per_page: int = 10,
+) -> list[User]:
     offset = (page - 1) * per_page
     result = await session.execute(
         select(User)
@@ -45,21 +63,29 @@ async def get_referrals_page(session: AsyncSession, referrer_id: int, page: int 
     )
     return result.scalars().all()
 
-async def get_nested_referral_count(session: AsyncSession, referral_ids: list[int]) -> int:
+
+async def get_nested_referral_count(
+    session: AsyncSession, referral_ids: list[int]
+) -> int:
     if not referral_ids:
         return 0
     result = await session.execute(
-        select(func.count()).select_from(Referral).where(Referral.referrer_id.in_(referral_ids))
+        select(func.count())
+        .select_from(Referral)
+        .where(Referral.referrer_id.in_(referral_ids))
     )
     return result.scalar_one()
 
-async def get_bonus_claim_percent(session: AsyncSession, referral_ids: list[int]) -> int:
+
+async def get_bonus_claim_percent(
+    session: AsyncSession, referral_ids: list[int]
+) -> int:
     if not referral_ids:
         return 0
-    
+
     total_percent = 0
     counted = 0
-    
+
     for referral_id in referral_ids:
         user_data = await session.execute(
             select(User.reg_date).where(User.id == referral_id)
@@ -79,23 +105,27 @@ async def get_bonus_claim_percent(session: AsyncSession, referral_ids: list[int]
         total_percent += percent
         counted += 1
     return round(total_percent / counted) if counted > 0 else 0
- 
 
-async def get_task_completion_percent(session: AsyncSession, referral_ids: list[int]) -> int:
+
+async def get_task_completion_percent(
+    session: AsyncSession, referral_ids: list[int]
+) -> int:
     if not referral_ids:
         return 0
-    
+
     result = await session.execute(select(func.count()).select_from(Task))
     total_tasks = result.scalar_one()
     if total_tasks == 0:
         return 0
-    
+
     total_percent = 0
     counted = 0
 
     for referral_id in referral_ids:
         completed_result = await session.execute(
-            select(func.count()).select_from(TaskCompletion).where(TaskCompletion.user_id == referral_id)
+            select(func.count())
+            .select_from(TaskCompletion)
+            .where(TaskCompletion.user_id == referral_id)
         )
         completed = completed_result.scalar_one()
 
@@ -104,8 +134,10 @@ async def get_task_completion_percent(session: AsyncSession, referral_ids: list[
         counted += 1
     return round(total_percent / counted) if counted > 0 else 0
 
+
 def get_banned_referral_count(referrals: list[User]) -> int:
     return sum(1 for r in referrals if r.is_banned)
+
 
 async def get_referral_stats(session: AsyncSession, referrer_id: int) -> dict:
     referrals = await get_referrals(session, referrer_id)
@@ -118,6 +150,7 @@ async def get_referral_stats(session: AsyncSession, referrer_id: int) -> dict:
         "task_percent": await get_task_completion_percent(session, referral_ids),
         "banned_count": get_banned_referral_count(referrals),
     }
+
 
 async def get_who_referred(session: AsyncSession, user_id: int) -> User | None:
     result = await session.execute(

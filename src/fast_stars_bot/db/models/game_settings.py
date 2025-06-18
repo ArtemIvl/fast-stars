@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Numeric
+from sqlalchemy import Column, Numeric, String
+
 from .base import Base
+
 
 class GameSetting(Base):
     __tablename__ = "game_settings"

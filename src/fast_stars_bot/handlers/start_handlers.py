@@ -1,19 +1,28 @@
-from aiogram import F, Router, types
-from aiogram.fsm.context import FSMContext
 import asyncio
+
+from aiogram import F, Router, types
+from aiogram.exceptions import TelegramForbiddenError
+from aiogram.fsm.context import FSMContext
 from db.session import SessionLocal
-from keyboards.menu_keyboard import menu_keyboard, menu_button_keyboard
+from handlers.giveaway_handlers import show_giveaway_info
+from handlers.promo_handlers import show_promo_menu
+from keyboards.menu_keyboard import menu_button_keyboard, menu_keyboard
 from keyboards.phone_keyboard import get_phone_keyboard
 from utils.channel_requests import get_all_channels
-from utils.subscription_requests import (is_user_subscribed_to_all,
-                                         reward_user_for_subscription)
-from utils.user_requests import (add_user, allowed_phone_number,
-                                 get_user_by_telegram_id, unban_user)
-from utils.referral_requests import (create_referral, has_referral, reward_for_referral)
-from aiogram.exceptions import TelegramForbiddenError
-from handlers.promo_handlers import show_promo_menu
+from utils.referral_requests import create_referral, has_referral, reward_for_referral
+from utils.subscription_requests import (
+    is_user_subscribed_to_all,
+    reward_user_for_subscription,
+)
+from utils.user_requests import (
+    add_user,
+    allowed_phone_number,
+    get_user_by_telegram_id,
+    unban_user,
+)
 
 router = Router()
+
 
 def register_start_handlers(dp) -> None:
     dp.include_router(router)
@@ -30,6 +39,7 @@ async def send_verification_prompt(message: types.Message) -> None:
         )
     except TelegramForbiddenError:
         print(f"❌ Бот заблокирован пользователем {message.from_user.id}")
+
 
 async def delete_message_after_delay(bot, chat_id, message_id, delay=30):
     await asyncio.sleep(delay)
@@ -56,16 +66,27 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
     telegram_id = message.from_user.id
     username = message.from_user.username
     if not username:
-        await message.answer("❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start.")
+        await message.answer(
+            "❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start."
+        )
         return
-    
+
     referrer_id = None
     parts = message.text.split()
 
     if len(parts) > 1 and parts[1] == "promo":
         await show_promo_menu(message, state)
         return
-    
+
+    if len(parts) > 1 and parts[1].startswith("giveaway_"):
+        try:
+            giveaway_id = int(parts[1].split("_")[1])
+            await show_giveaway_info(message, giveaway_id, telegram_id)
+            return
+        except Exception:
+            await message.answer("❗ Ошибка при обработке розыгрыша.")
+            return
+
     if len(parts) > 1:
         try:
             referrer_id = int(parts[1])
@@ -75,11 +96,13 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
         if not user:
-            await state.set_data({
+            await state.set_data(
+                {
                     "telegram_id": telegram_id,
                     "username": username,
                     "referrer_id": referrer_id,
-                })
+                }
+            )
             await send_verification_prompt(message)
         else:
             channels = await get_all_channels(session)
@@ -90,7 +113,9 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
 @router.message(F.contact)
 async def handle_contact(message: types.Message, state: FSMContext) -> None:
     if message.from_user.id != message.contact.user_id:
-        await message.answer("Поделитесь *своим* номером телефона.", parse_mode="Markdown")
+        await message.answer(
+            "Поделитесь *своим* номером телефона.", parse_mode="Markdown"
+        )
         return
 
     phone = message.contact.phone_number
@@ -104,7 +129,9 @@ async def handle_contact(message: types.Message, state: FSMContext) -> None:
     referrer_id = data.get("referrer_id")
 
     if not username:
-        await message.answer("❗Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start.")
+        await message.answer(
+            "❗Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start."
+        )
         return
 
     async with SessionLocal() as session:
@@ -122,30 +149,40 @@ async def handle_contact(message: types.Message, state: FSMContext) -> None:
                 try:
                     sent = await message.bot.send_message(
                         chat_id=referrer.telegram_id,
-                        text=f"🎉 У вас новый реферал — @{user.username or 'пользователь'}!\nВы получили 4.0 ⭐️"
+                        text=f"🎉 У вас новый реферал — @{user.username or 'пользователь'}!\nВы получили 4.0 ⭐️",
                     )
-                    asyncio.create_task(delete_message_after_delay(message.bot, referrer.telegram_id, sent.message_id))
+                    asyncio.create_task(
+                        delete_message_after_delay(
+                            message.bot, referrer.telegram_id, sent.message_id
+                        )
+                    )
                 except Exception as e:
                     print(f"Не удалось отправить сообщение пригласившему: {e}")
-                    
+
         await send_welcome_messages(message, user)
-        
+
 
 @router.callback_query(F.data == "check_subs")
 async def check_subs_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     telegram_id = callback.from_user.id
     username = callback.from_user.username or "anonymous"
     if not username:
-        await callback.message.edit_text("❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start.")
+        await callback.message.edit_text(
+            "❗ Чтобы пользоваться ботом, добавьте username в настройках Telegram и нажмите /start."
+        )
         return
 
     async with SessionLocal() as session:
         channels = await get_all_channels(session)
-        subscribed = await is_user_subscribed_to_all(callback.bot, telegram_id, channels)
+        subscribed = await is_user_subscribed_to_all(
+            callback.bot, telegram_id, channels
+        )
         if not subscribed:
-            await callback.answer("❗Вы ещё не подписались на все каналы.", show_alert=True)
+            await callback.answer(
+                "❗Вы ещё не подписались на все каналы.", show_alert=True
+            )
             return
-        
+
         user = await get_user_by_telegram_id(session, telegram_id)
         if user:
             await reward_user_for_subscription(session, callback.bot, user, channels)
@@ -158,26 +195,36 @@ async def check_subs_callback(callback: types.CallbackQuery, state: FSMContext) 
             )
         else:
             old_data = await state.get_data()
-            await state.update_data({
-                "telegram_id": telegram_id,
-                "username": username,
-                "referrer_id": old_data.get("referrer_id")
-            })
+            await state.update_data(
+                {
+                    "telegram_id": telegram_id,
+                    "username": username,
+                    "referrer_id": old_data.get("referrer_id"),
+                }
+            )
             await callback.message.edit_text("✅ Спасибо за подписку!")
             await send_verification_prompt(callback.message)
 
+
 @router.pre_checkout_query(lambda q: True)
-async def pre_checkout_query_handler(pre_checkout_query: types.PreCheckoutQuery) -> None:
+async def pre_checkout_query_handler(
+    pre_checkout_query: types.PreCheckoutQuery,
+) -> None:
     await pre_checkout_query.bot.answer_pre_checkout_query(
         pre_checkout_query.id,
         ok=True,
     )
-    
-@router.message(F.successful_payment, F.successful_payment.invoice_payload.startswith("unban:"))
+
+
+@router.message(
+    F.successful_payment, F.successful_payment.invoice_payload.startswith("unban:")
+)
 async def handle_unban_payment(message: types.Message):
     telegram_id = message.from_user.id
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
         if user and user.is_banned:
             await unban_user(session, user)
-            await message.answer("✅ Вы успешно разблокированы. Добро пожаловать обратно!")
+            await message.answer(
+                "✅ Вы успешно разблокированы. Добро пожаловать обратно!"
+            )

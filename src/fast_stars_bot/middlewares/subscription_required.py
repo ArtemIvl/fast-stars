@@ -1,16 +1,16 @@
-from typing import Any, Awaitable, Callable, Dict
 import random
+from typing import Any, Awaitable, Callable, Dict
+
 from aiogram import BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from db.session import SessionLocal
+from keyboards.channels_keyboard import channels_keyboard
+from services.redis_client import redis_client
 from utils.channel_requests import get_all_channels
 from utils.subscription_requests import is_user_subscribed_to_all
 from utils.user_requests import get_user_by_telegram_id
-from aiogram.fsm.context import FSMContext
-from services.redis_client import redis_client
-
-from keyboards.channels_keyboard import channels_keyboard
 
 
 class SubscriptionRequiredMiddleware(BaseMiddleware):
@@ -24,19 +24,20 @@ class SubscriptionRequiredMiddleware(BaseMiddleware):
         state: FSMContext = data.get("state")
 
         is_menu_trigger = (
-            isinstance(event, Message) and event.text in {"/menu", "⭐️ Меню", "/start"}
-        ) or (
-            isinstance(event, CallbackQuery) and event.data == "back"
-        ) or (
-            isinstance(event, CallbackQuery) and event.data == "check_subs"
-        ) 
+            (
+                isinstance(event, Message)
+                and event.text in {"/menu", "⭐️ Меню", "/start"}
+            )
+            or (isinstance(event, CallbackQuery) and event.data == "back")
+            or (isinstance(event, CallbackQuery) and event.data == "check_subs")
+        )
 
         if not is_menu_trigger:
             return await handler(event, data)
-        
+
         if isinstance(event, CallbackQuery) and event.data == "check_subs":
             await redis_client.delete(f"subs:{telegram_id}")  # Удаляем кэш ДО проверки
-        
+
         async with SessionLocal() as session:
             channels = await get_all_channels(session)
 
@@ -45,7 +46,11 @@ class SubscriptionRequiredMiddleware(BaseMiddleware):
             )
 
             if not is_subscribed:
-                if isinstance(event, Message) and event.text and event.text.startswith("/start"):
+                if (
+                    isinstance(event, Message)
+                    and event.text
+                    and event.text.startswith("/start")
+                ):
                     parts = event.text.split()
                     if len(parts) > 1:
                         try:
@@ -62,9 +67,13 @@ class SubscriptionRequiredMiddleware(BaseMiddleware):
                 kb = channels_keyboard(channels)
                 if isinstance(event, CallbackQuery):
                     try:
-                        await event.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+                        await event.message.edit_text(
+                            text, parse_mode="HTML", reply_markup=kb
+                        )
                     except TelegramBadRequest:
-                        await event.answer("❗️Пожалуйста подпишитесь на все КАНАЛЫ🤝", show_alert=True)
+                        await event.answer(
+                            "❗️Пожалуйста подпишитесь на все КАНАЛЫ🤝", show_alert=True
+                        )
                 else:
                     await event.answer(text, parse_mode="HTML", reply_markup=kb)
                 return

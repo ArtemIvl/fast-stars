@@ -1,8 +1,8 @@
 from aiogram import F, Router, types
+from aiogram.fsm.context import FSMContext
 from db.session import SessionLocal
 from keyboards.admin_keyboards import admin_keyboard
 from utils.user_requests import check_admin
-from aiogram.fsm.context import FSMContext
 
 base_admin_router = Router()
 
@@ -13,6 +13,7 @@ async def admin_callback(message: types.Message, state: FSMContext) -> None:
     await message.answer(
         "Добро пожаловать в админ панель!", reply_markup=admin_keyboard()
     )
+
 
 @base_admin_router.callback_query(F.data == "back_admin")
 async def back_admin_callback(callback: types.CallbackQuery, state: FSMContext) -> None:

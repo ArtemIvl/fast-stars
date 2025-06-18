@@ -1,7 +1,9 @@
+from decimal import Decimal
+
+from db.models.game_settings import GameSetting
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models.game_settings import GameSetting
-from decimal import Decimal
+
 
 async def get_game_setting(session: AsyncSession, key: str) -> Decimal:
     result = await session.execute(
@@ -12,10 +14,11 @@ async def get_game_setting(session: AsyncSession, key: str) -> Decimal:
         raise ValueError(f"Setting '{key}' not found")
     return Decimal(setting)
 
-async def update_game_setting(session: AsyncSession, key: str, new_value: Decimal) -> None:
-    result = await session.execute(
-        select(GameSetting).where(GameSetting.key == key)
-    )
+
+async def update_game_setting(
+    session: AsyncSession, key: str, new_value: Decimal
+) -> None:
+    result = await session.execute(select(GameSetting).where(GameSetting.key == key))
     setting = result.scalar_one_or_none()
     if setting:
         setting.value = new_value

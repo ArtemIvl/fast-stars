@@ -7,20 +7,20 @@ from src.fast_stars_bot.config.settings import settings
 from src.fast_stars_bot.db.models.base import Base
 from src.fast_stars_bot.db.models.basketball_log import BasketballLog
 from src.fast_stars_bot.db.models.channel import Channel
-from src.fast_stars_bot.db.models.daily_bonus_claim import DailyBonusClaim
-from src.fast_stars_bot.db.models.subscription_log import SubscriptionLog
-from src.fast_stars_bot.db.models.user import User
-from src.fast_stars_bot.db.models.task import Task, TaskCompletion
-from src.fast_stars_bot.db.models.promo_code import PromoCode, PromoActivation
-from src.fast_stars_bot.db.models.vip_subscription import VipSubscription
 from src.fast_stars_bot.db.models.cube_game import CubeGame
-from src.fast_stars_bot.db.models.referral import Referral
-from src.fast_stars_bot.db.models.x2game import X2Game
-from src.fast_stars_bot.db.models.withdrawal import Withdrawal
-from src.fast_stars_bot.db.models.game_settings import GameSetting
+from src.fast_stars_bot.db.models.daily_bonus_claim import DailyBonusClaim
 from src.fast_stars_bot.db.models.deposit import Deposit
+from src.fast_stars_bot.db.models.game_settings import GameSetting
 from src.fast_stars_bot.db.models.giveaway import Giveaway, GiveawayTicket
+from src.fast_stars_bot.db.models.promo_code import PromoActivation, PromoCode
+from src.fast_stars_bot.db.models.referral import Referral
 from src.fast_stars_bot.db.models.slot_machine_log import SlotMachineLog
+from src.fast_stars_bot.db.models.subscription_log import SubscriptionLog
+from src.fast_stars_bot.db.models.task import Task, TaskCompletion
+from src.fast_stars_bot.db.models.user import User
+from src.fast_stars_bot.db.models.vip_subscription import VipSubscription
+from src.fast_stars_bot.db.models.withdrawal import Withdrawal
+from src.fast_stars_bot.db.models.x2game import X2Game
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -1,4 +1,9 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 
 def menu_keyboard() -> InlineKeyboardMarkup:
@@ -17,16 +22,13 @@ def menu_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🎁 Бонус дня", callback_data="daily_bonus"),
-            InlineKeyboardButton(text="📊 Статистика", callback_data="stats")
+            InlineKeyboardButton(text="📊 Статистика", callback_data="stats"),
         ],
-        [
-            InlineKeyboardButton(text="🎮 Игры 🎮", callback_data="games")
-        ],
-        [
-            InlineKeyboardButton(text="🎁 Розыгрыш Stars 🎁", callback_data="giveaways")
-        ]
+        [InlineKeyboardButton(text="🎮 Игры 🎮", callback_data="games")],
+        [InlineKeyboardButton(text="🎁 Розыгрыш Stars 🎁", callback_data="giveaways")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
 
 def menu_button_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [[KeyboardButton(text="⭐️ Меню")]]

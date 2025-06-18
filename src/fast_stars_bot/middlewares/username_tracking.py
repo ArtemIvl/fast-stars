@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery, Message
 from db.session import SessionLocal
 from utils.user_requests import get_user_by_telegram_id, update_user_username
 
+
 class UserTrackingMiddleware(BaseMiddleware):
     async def __call__(
         self,
@@ -16,13 +17,13 @@ class UserTrackingMiddleware(BaseMiddleware):
         current_username = event.from_user.username
 
         if not current_username:
-                text = "❗У вас не установлен username в Telegram. Установите его в настройках чтобы продолжать пользоваться нашим ботом."
-                if isinstance(event, CallbackQuery):
-                    await event.answer(text, show_alert=True)
-                else:
-                    await event.answer(text)
-                return
-        
+            text = "❗У вас не установлен username в Telegram. Установите его в настройках чтобы продолжать пользоваться нашим ботом."
+            if isinstance(event, CallbackQuery):
+                await event.answer(text, show_alert=True)
+            else:
+                await event.answer(text)
+            return
+
         async with SessionLocal() as session:
             user = await get_user_by_telegram_id(session, telegram_id)
             if user and user.username != current_username:

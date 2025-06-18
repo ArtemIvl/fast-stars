@@ -1,8 +1,10 @@
-from db.models.x2game import X2Game
 from decimal import Decimal
+
+from db.models.user import User
+from db.models.x2game import X2Game
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models.user import User
+
 
 async def get_or_create_stats(session: AsyncSession) -> X2Game:
     result = await session.execute(select(X2Game).limit(1))
@@ -13,7 +15,10 @@ async def get_or_create_stats(session: AsyncSession) -> X2Game:
         await session.commit()
     return stats
 
-async def save_x2game_results(session: AsyncSession, user: User, bet: Decimal, result: bool) -> None:
+
+async def save_x2game_results(
+    session: AsyncSession, user: User, bet: Decimal, result: bool
+) -> None:
     stats = await get_or_create_stats(session)
     if result:
         stats.won += bet

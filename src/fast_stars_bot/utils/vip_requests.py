@@ -1,10 +1,10 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from db.models.user import User
 from db.models.vip_subscription import VipSubscription
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from decimal import Decimal
 
 
 async def is_user_vip(session: AsyncSession, user_id: int) -> bool:

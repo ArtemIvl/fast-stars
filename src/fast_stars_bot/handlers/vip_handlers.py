@@ -1,14 +1,17 @@
 from aiogram import F, Router, types
 from db.session import SessionLocal
-from keyboards.vip_keyboard import (vip_confirmation_keyboard,
-                                    vip_info_keyboard, vip_keyboard)
+from keyboards.vip_keyboard import (
+    vip_confirmation_keyboard,
+    vip_info_keyboard,
+    vip_keyboard,
+)
 from utils.user_requests import get_user_by_telegram_id
-from utils.vip_requests import (get_active_vip_subscription, grant_vip,
-                                is_user_vip)
+from utils.vip_requests import get_active_vip_subscription, grant_vip, is_user_vip
 
 router = Router()
 
 VIP_PRICE = 99.9
+
 
 def register_vip_handlers(dp) -> None:
     dp.include_router(router)
@@ -34,7 +37,7 @@ async def vip_info_callback(callback: types.CallbackQuery) -> None:
                 reply_markup=vip_info_keyboard(),
             )
             return
-        
+
         await callback.message.edit_text(
             "💎 <b>VIP-пакет — эксклюзивная подписка для самых активных!</b>\n"
             f"Цена: <b>{VIP_PRICE} ⭐ на 30 дней</b>.\n"

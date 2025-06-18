@@ -1,12 +1,24 @@
+import asyncio
+
+from aiogram.exceptions import (
+    TelegramAPIError,
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+    TelegramNotFound,
+)
 from db.session import SessionLocal
 from utils.user_requests import get_all_users
 from utils.vip_requests import get_all_vip_users
-import asyncio
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNotFound, TelegramNetworkError, TelegramAPIError
+
 
 async def send_broadcast(bot, data: dict) -> None:
     async with SessionLocal() as session:
-        users = await get_all_vip_users(session) if data["audience"] == "vip" else await get_all_users(session)
+        users = (
+            await get_all_vip_users(session)
+            if data["audience"] == "vip"
+            else await get_all_users(session)
+        )
         for user in users:
             try:
                 if data.get("photo"):
@@ -14,13 +26,13 @@ async def send_broadcast(bot, data: dict) -> None:
                         chat_id=user.telegram_id,
                         photo=data["photo"],
                         caption=data.get("text"),
-                        caption_entities=data.get("entities")
+                        caption_entities=data.get("entities"),
                     )
                 else:
                     await bot.send_message(
                         chat_id=user.telegram_id,
                         text=data["text"],
-                        entities=data.get("entities")
+                        entities=data.get("entities"),
                     )
                 await asyncio.sleep(0.05)
             except TelegramForbiddenError:
@@ -30,7 +42,9 @@ async def send_broadcast(bot, data: dict) -> None:
                 print(f"Чат с пользователем {user.telegram_id} не найден.")
                 continue
             except TelegramNetworkError as e:
-                print(f"Проблема с сетью при отправке пользователю {user.telegram_id}: {e}")
+                print(
+                    f"Проблема с сетью при отправке пользователю {user.telegram_id}: {e}"
+                )
                 await asyncio.sleep(1)
                 continue
             except TelegramBadRequest as e:
@@ -40,8 +54,11 @@ async def send_broadcast(bot, data: dict) -> None:
                 print(f"Ошибка Telegram API для {user.telegram_id}: {e}")
                 continue
             except Exception as e:
-                print(f"Неизвестная ошибка при отправке пользователю {user.telegram_id}: {e}")
+                print(
+                    f"Неизвестная ошибка при отправке пользователю {user.telegram_id}: {e}"
+                )
                 continue
+
 
 async def delayed_broadcast(bot, delay: float, data: dict) -> None:
     await asyncio.sleep(delay)

@@ -1,18 +1,26 @@
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from db.session import SessionLocal
+import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 from random import choices
-import asyncio
-from pytz import timezone
-from apscheduler.triggers.date import DateTrigger
-from utils.user_requests import get_user_by_id, add_stars_to_user, get_all_users, get_all_admins
-from utils.giveaway_requests import get_active_bot_giveaway, get_tickets_for_giveaway, create_giveaway, get_giveaway_by_id, mark_giveaway_finished, get_admin_unfinished_giveaways
+
 from aiogram import Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
+from db.session import SessionLocal
+from pytz import timezone
+from utils.giveaway_requests import (
+    create_giveaway,
+    get_active_bot_giveaway,
+    get_giveaway_by_id,
+    get_tickets_for_giveaway,
+    mark_giveaway_finished,
+)
+from utils.user_requests import add_stars_to_user, get_all_users, get_user_by_id
 
 scheduler = AsyncIOScheduler()
 kyiv_tz = timezone("Europe/Kyiv")
+
 
 def setup_weekly_giveaway(bot: Bot) -> None:
     scheduler.add_job(
@@ -21,6 +29,7 @@ def setup_weekly_giveaway(bot: Bot) -> None:
         kwargs={"bot": bot},
     )
     scheduler.start()
+
 
 async def finish_weekly_giveaway(bot: Bot) -> None:
     async with SessionLocal() as session:
@@ -31,10 +40,11 @@ async def finish_weekly_giveaway(bot: Bot) -> None:
         await handle_giveaway_finish(bot, session, giveaway.id)
         await ensure_active_bot_giveaway_exists()
 
+
 async def finish_scheduled_giveaway(giveaway_id: int, bot: Bot) -> None:
-    print(f"FINISH giveaway {giveaway_id}")
     async with SessionLocal() as session:
         await handle_giveaway_finish(bot, session, giveaway_id)
+
 
 def schedule_giveaway_finish(giveaway_id: int, end_time: datetime, bot: Bot):
     scheduler.add_job(
@@ -46,10 +56,24 @@ def schedule_giveaway_finish(giveaway_id: int, end_time: datetime, bot: Bot):
     )
     print(f"✅ Scheduled giveaway {giveaway_id} for {end_time}")
 
+
 def unschedule_giveaway_finish(giveaway_id: int):
     job_id = f"finish_giveaway_{giveaway_id}"
     if scheduler.get_job(job_id):
         scheduler.remove_job(job_id)
+
+
+def schedule_giveaway_start_notification(
+    giveaway_id: int, start_time: datetime, bot: Bot
+):
+    scheduler.add_job(
+        notify_giveaway_start,
+        DateTrigger(run_date=start_time),
+        kwargs={"giveaway_id": giveaway_id, "bot": bot},
+        id=f"start_notify_giveaway_{giveaway_id}",
+        replace_existing=True,
+    )
+
 
 async def ensure_active_bot_giveaway_exists() -> None:
     async with SessionLocal() as session:
@@ -60,7 +84,7 @@ async def ensure_active_bot_giveaway_exists() -> None:
             next_sunday = (now + timedelta(days=days_until_sunday)).replace(
                 hour=20, minute=0, second=0, microsecond=0
             )
-            name = f"FAST Stars розыгрыш {next_sunday.strftime('%d.%m')}"
+            name = "🏆 Розыгрыш от FAST Stars 🏆"
             await create_giveaway(
                 session,
                 name=name,
@@ -68,8 +92,32 @@ async def ensure_active_bot_giveaway_exists() -> None:
                 end_time=next_sunday,
                 prize_pool=Decimal(1000),
                 channel_link=None,
-                num_of_winners=int(50)
+                channel_username=None,
+                num_of_winners=int(50),
             )
+
+
+async def notify_giveaway_start(giveaway_id: int, bot: Bot) -> None:
+    async with SessionLocal() as session:
+        giveaway = await get_giveaway_by_id(session, giveaway_id)
+        if not giveaway:
+            return
+        users = await get_all_users(session)
+
+        text = (
+            f"<b>🎉 Начался новый розыгрыш: {giveaway.name}!</b>\n\n"
+            f"📌 Призовой фонд: <b>{giveaway.prize_pool}⭐</b>\n"
+            f"🏆 Победителей: <b>{giveaway.num_of_winners}</b>\n"
+            f"⏰ Итоги: <b>{giveaway.end_time.astimezone(kyiv_tz).strftime('%d.%m.%Y %H:%M')}</b>\n\n"
+            f"🎟 Участвуй прямо сейчас — чем больше билетов, тем выше шансы на победу!"
+        )
+
+        for user in users:
+            try:
+                await bot.send_message(user.telegram_id, text, parse_mode="HTML")
+            except Exception:
+                continue
+
 
 async def handle_giveaway_finish(bot: Bot, session, giveaway_id: int) -> None:
     giveaway = await get_giveaway_by_id(session, giveaway_id)
@@ -97,35 +145,37 @@ async def handle_giveaway_finish(bot: Bot, session, giveaway_id: int) -> None:
         f"<b>🎉 Результаты розыгрыша {giveaway.name}!</b>\n"
         f"<i>Спасибо за участие. Вот список победителей:</i>\n\n"
     )
-    for i, user_id in enumerate(winners[:giveaway.num_of_winners], 1):
+    for i, user_id in enumerate(winners[: giveaway.num_of_winners], 1):
         user = await get_user_by_id(session, user_id)
-        result_text += f"<b>{i}.</b> @{user.username or '—'} — {prize_distribution.get(i, 0)}⭐️\n"
+        result_text += (
+            f"<b>{i}.</b> @{user.username or '—'} — {prize_distribution.get(i, 0)}⭐️\n"
+        )
     result_text += "\nСледи за следующими розыгрышами — скоро новый!"
 
     users = await get_all_users(session)
-    admins = await get_all_admins(session)
-    for ad in admins:
+    for user in users:
         try:
-            await bot.send_message(ad.telegram_id, result_text, parse_mode="HTML")
+            await bot.send_message(user.telegram_id, result_text, parse_mode="HTML")
         except Exception:
             continue
 
 
 def generate_prizes(num_winners: int, prize_pool: Decimal) -> dict:
-    base_distribution = {
-        1: 0.12,  # 12%
-        2: 0.09,
-        3: 0.07,
-        **{i: 0.008 for i in range(4, 11)},
-        **{i: 0.004 for i in range(11, 21)},
-        **{i: 0.002 for i in range(21, 51)},
+    # Пропорции соответствуют 1000 prize_pool
+    base_values = {
+        1: 120,
+        2: 90,
+        3: 70,
+        **{i: 40 for i in range(4, 11)},
+        **{i: 20 for i in range(11, 21)},
+        **{i: 8 for i in range(21, 51)},
     }
-    normalized = {}
-    total_percent = sum(base_distribution.get(i, 0) for i in range(1, num_winners + 1))
 
-    for i in range(1, num_winners + 1):
-        percent = base_distribution.get(i, 0.002)
-        adjusted = prize_pool * Decimal(percent / total_percent)
-        normalized[i] = round(adjusted, 2)
+    # Урежем до нужного количества победителей
+    base_values = {i: v for i, v in base_values.items() if i <= num_winners}
+    total = sum(base_values.values())
 
-    return normalized
+    scaled = {
+        i: round(prize_pool * Decimal(v / total), 2) for i, v in base_values.items()
+    }
+    return scaled

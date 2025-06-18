@@ -1,14 +1,26 @@
-from aiogram import Router, types, F
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
 from decimal import Decimal, InvalidOperation
-from keyboards.admin_keyboards import manage_tasks_keyboard, delete_tasks_keyboard, task_info_keyboard, back_to_tasks_keyboard
-from utils.task_requests import add_task, get_all_tasks, get_task_by_id, get_task_completion_count, delete_task
-from services.notifications import notify_vip_users_about_new_task
 
+from aiogram import F, Router, types
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from db.session import SessionLocal
+from keyboards.admin_keyboards import (
+    back_to_tasks_keyboard,
+    delete_tasks_keyboard,
+    manage_tasks_keyboard,
+    task_info_keyboard,
+)
+from services.notifications import notify_vip_users_about_new_task
+from utils.task_requests import (
+    add_task,
+    delete_task,
+    get_all_tasks,
+    get_task_by_id,
+    get_task_completion_count,
+)
 
 task_admin_router = Router()
+
 
 class AddTaskState(StatesGroup):
     waiting_for_task_title = State()
@@ -17,8 +29,11 @@ class AddTaskState(StatesGroup):
     waiting_for_task_reward = State()
     waiting_for_subscription_status = State()
 
+
 @task_admin_router.callback_query(F.data == "manage_tasks")
-async def manage_tasks_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
+async def manage_tasks_callback(
+    callback: types.CallbackQuery, state: FSMContext
+) -> None:
     await state.clear()
     async with SessionLocal() as session:
         tasks = await get_all_tasks(session)
@@ -26,11 +41,15 @@ async def manage_tasks_callback(callback: types.CallbackQuery, state: FSMContext
             "Управление заданиями:", reply_markup=manage_tasks_keyboard(tasks)
         )
 
+
 @task_admin_router.callback_query(F.data == "add_task")
 async def add_task_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
-    sent = await callback.message.edit_text("Введите название задания:", reply_markup=back_to_tasks_keyboard())
+    sent = await callback.message.edit_text(
+        "Введите название задания:", reply_markup=back_to_tasks_keyboard()
+    )
     await state.update_data(last_bot_message_id=sent.message_id)
     await state.set_state(AddTaskState.waiting_for_task_title)
+
 
 @task_admin_router.message(AddTaskState.waiting_for_task_title)
 async def add_task_title(message: types.Message, state: FSMContext) -> None:
@@ -43,9 +62,12 @@ async def add_task_title(message: types.Message, state: FSMContext) -> None:
             pass
     title = message.text.strip()
     await state.update_data(task_title=title)
-    sent = await message.answer("Введите ссылку на задание:", reply_markup=back_to_tasks_keyboard())
+    sent = await message.answer(
+        "Введите ссылку на задание:", reply_markup=back_to_tasks_keyboard()
+    )
     await state.update_data(last_bot_message_id=sent.message_id)
     await state.set_state(AddTaskState.waiting_for_task_url)
+
 
 @task_admin_router.message(AddTaskState.waiting_for_task_url)
 async def add_task_title(message: types.Message, state: FSMContext) -> None:
@@ -60,14 +82,17 @@ async def add_task_title(message: types.Message, state: FSMContext) -> None:
     if not url.startswith("https://"):
         sent = await message.answer(
             "Ссылка должна начинаться с 'https://. Пожалуйста, введите корректную ссылку:",
-            reply_markup=back_to_tasks_keyboard()
+            reply_markup=back_to_tasks_keyboard(),
         )
         await state.update_data(last_bot_message_id=sent.message_id)
         return
     await state.update_data(task_url=url)
-    sent = await message.answer("Введите @username или chat_id:", reply_markup=back_to_tasks_keyboard())
+    sent = await message.answer(
+        "Введите @username или chat_id (c -):", reply_markup=back_to_tasks_keyboard()
+    )
     await state.update_data(last_bot_message_id=sent.message_id)
     await state.set_state(AddTaskState.waiting_for_task_username)
+
 
 @task_admin_router.message(AddTaskState.waiting_for_task_username)
 async def add_task_url(message: types.Message, state: FSMContext) -> None:
@@ -80,9 +105,13 @@ async def add_task_url(message: types.Message, state: FSMContext) -> None:
             pass
     username = message.text.strip()
     await state.update_data(task_username=username)
-    sent = await message.answer("Введите вознаграждение за выполнение задания (в звёздах ⭐):", reply_markup=back_to_tasks_keyboard())
+    sent = await message.answer(
+        "Введите вознаграждение за выполнение задания (в звёздах ⭐):",
+        reply_markup=back_to_tasks_keyboard(),
+    )
     await state.update_data(last_bot_message_id=sent.message_id)
     await state.set_state(AddTaskState.waiting_for_task_reward)
+
 
 @task_admin_router.message(AddTaskState.waiting_for_task_reward)
 async def add_task_reward(message: types.Message, state: FSMContext) -> None:
@@ -96,20 +125,31 @@ async def add_task_reward(message: types.Message, state: FSMContext) -> None:
     try:
         reward = Decimal(message.text)
         if reward <= 0:
-            sent = await message.answer("Вознаграждение должно быть больше 0. Попробуйте снова.", reply_markup=back_to_tasks_keyboard())
+            sent = await message.answer(
+                "Вознаграждение должно быть больше 0. Попробуйте снова.",
+                reply_markup=back_to_tasks_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
             return
         await state.update_data(task_reward=reward)
-        sent = await message.answer("Задание требует подписки? (да/нет):", reply_markup=back_to_tasks_keyboard())
+        sent = await message.answer(
+            "Задание требует подписки? (да/нет):", reply_markup=back_to_tasks_keyboard()
+        )
         await state.update_data(last_bot_message_id=sent.message_id)
         await state.set_state(AddTaskState.waiting_for_subscription_status)
     except InvalidOperation:
-        sent = await message.answer("Некорректный ввод. Пожалуйста, введите число.", reply_markup=back_to_tasks_keyboard())
+        sent = await message.answer(
+            "Некорректный ввод. Пожалуйста, введите число.",
+            reply_markup=back_to_tasks_keyboard(),
+        )
         await state.update_data(last_bot_message_id=sent.message_id)
         return
 
+
 @task_admin_router.message(AddTaskState.waiting_for_subscription_status)
-async def add_task_subscription_status(message: types.Message, state: FSMContext) -> None:
+async def add_task_subscription_status(
+    message: types.Message, state: FSMContext
+) -> None:
     data = await state.get_data()
     last_msg_id = data.get("last_bot_message_id")
     if last_msg_id:
@@ -119,7 +159,9 @@ async def add_task_subscription_status(message: types.Message, state: FSMContext
             pass
     subscription = message.text.strip().lower()
     if subscription not in ["да", "нет"]:
-        sent = await message.answer("Пожалуйста, введите 'да' или 'нет'.", reply_markup=back_to_tasks_keyboard())
+        sent = await message.answer(
+            "Пожалуйста, введите 'да' или 'нет'.", reply_markup=back_to_tasks_keyboard()
+        )
         await state.update_data(last_bot_message_id=sent.message_id)
         return
     await state.update_data(subscription=subscription)
@@ -132,11 +174,20 @@ async def add_task_subscription_status(message: types.Message, state: FSMContext
     requires_subscription = data.get("subscription") == "да"
 
     async with SessionLocal() as session:
-        new_task = await add_task(session, title=task_title, url=task_url, username=task_username, reward=task_reward, requires_subscription=requires_subscription)
+        new_task = await add_task(
+            session,
+            title=task_title,
+            url=task_url,
+            username=task_username,
+            reward=task_reward,
+            requires_subscription=requires_subscription,
+        )
         await notify_vip_users_about_new_task(message.bot, new_task)
-        tasks = await get_all_tasks(session) 
+        tasks = await get_all_tasks(session)
 
-    await message.answer("Задание успешно добавлено!", reply_markup=manage_tasks_keyboard(tasks))
+    await message.answer(
+        "Задание успешно добавлено!", reply_markup=manage_tasks_keyboard(tasks)
+    )
     await state.clear()
 
 
@@ -148,6 +199,7 @@ async def delete_task_callback(callback: types.CallbackQuery) -> None:
         "Выберите задание для удаления:", reply_markup=delete_tasks_keyboard(tasks)
     )
 
+
 @task_admin_router.callback_query(F.data.startswith("del_task_"))
 async def delete_task_handler(callback: types.CallbackQuery) -> None:
     task_id = int(callback.data.split("_")[2])
@@ -158,6 +210,7 @@ async def delete_task_handler(callback: types.CallbackQuery) -> None:
             "Задание удалено!",
             reply_markup=manage_tasks_keyboard(tasks),
         )
+
 
 @task_admin_router.callback_query(F.data.startswith("task_"))
 async def info_task_handler(callback: types.CallbackQuery) -> None:

@@ -1,13 +1,17 @@
-from sqlalchemy import Column, Integer, Numeric, ForeignKey, Enum, DateTime
-from datetime import datetime, timezone
 import enum
+from datetime import datetime, timezone
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, Numeric
+
 from .base import Base
+
 
 class GameStatus(enum.Enum):
     WAITING = "waiting"
     IN_PROGRESS = "in_progress"
     FINISHED = "finished"
     CANCELED = "canceled"
+
 
 class CubeGame(Base):
     __tablename__ = "cube_games"
@@ -18,4 +22,6 @@ class CubeGame(Base):
     winner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(Enum(GameStatus), default=GameStatus.WAITING, nullable=False)
     bet = Column(Numeric(10, 2), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )

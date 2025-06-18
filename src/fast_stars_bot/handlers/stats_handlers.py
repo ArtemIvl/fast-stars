@@ -1,12 +1,13 @@
-from aiogram import Router, types, F
 import asyncio
+
+from aiogram import F, Router, types
 from db.session import SessionLocal
 from keyboards.stats_keyboard import stats_keyboard
 from utils.user_requests import get_total_users, get_users_registered_today
 from utils.withdrawal_requests import get_total_withdrawn_stars
 
-
 router = Router()
+
 
 def register_stats_handlers(dp) -> None:
     dp.include_router(router)
@@ -18,10 +19,12 @@ async def stats_callback(callback: types.CallbackQuery) -> None:
         total_users, users_today, withdrawn_total = await asyncio.gather(
             get_total_users(session),
             get_users_registered_today(session),
-            get_total_withdrawn_stars(session)
+            get_total_withdrawn_stars(session),
         )
 
-    withdrawn_total -= 100_000 # estimation of declined withdrawals (before they were tracked)
+    withdrawn_total -= (
+        100_000  # estimation of declined withdrawals (before they were tracked)
+    )
 
     text = (
         "<b>📊 Статистика нашего бота:</b>\n\n"

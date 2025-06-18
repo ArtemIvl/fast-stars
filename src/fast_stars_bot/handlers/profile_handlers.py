@@ -1,10 +1,10 @@
 from aiogram import F, Router, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from db.session import SessionLocal
 from keyboards.profile_keyboard import profile_keyboard
 from utils.user_requests import get_user_by_telegram_id
 from utils.vip_requests import is_user_vip
-from aiogram.exceptions import TelegramBadRequest
 
 router = Router()
 
@@ -30,7 +30,7 @@ async def profile_callback(callback: types.CallbackQuery, state: FSMContext) -> 
         )
         if is_vip:
             text += "\n\n<b>💎 Вы - VIP пользователь!</b>"
-       
+
     try:
         await callback.message.edit_text(
             text,

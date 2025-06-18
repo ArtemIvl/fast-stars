@@ -1,14 +1,15 @@
 from aiogram import F, Router, types
 from db.session import SessionLocal
-from utils.user_requests import get_user_by_telegram_id
-from utils.referral_requests import get_referral_count, get_referral_stats
 from keyboards.channels_keyboard import back_to_menu_keyboard
-
+from utils.referral_requests import get_referral_count, get_referral_stats
+from utils.user_requests import get_user_by_telegram_id
 
 router = Router()
 
+
 def register_invite_friend_handlers(dp) -> None:
     dp.include_router(router)
+
 
 @router.callback_query(F.data == "invite_friend")
 async def invite_friend_callback(callback: types.CallbackQuery) -> None:
@@ -20,7 +21,7 @@ async def invite_friend_callback(callback: types.CallbackQuery) -> None:
         if not user:
             await callback.message.answer("Пользователь не найден.")
             return
-        
+
         referral_link = f"https://t.me/{bot_username}?start={telegram_id}"
 
         referral_count = await get_referral_count(session, user.id)
@@ -48,4 +49,6 @@ async def invite_friend_callback(callback: types.CallbackQuery) -> None:
             "❗️Минимальная активность для вывода ⭐️ за рефералов — 10% по каждому показателю.❗️"
         )
 
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_menu_keyboard())
+        await callback.message.edit_text(
+            text, parse_mode="HTML", reply_markup=back_to_menu_keyboard()
+        )

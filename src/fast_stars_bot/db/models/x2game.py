@@ -1,5 +1,7 @@
-from sqlalchemy import Numeric, Integer, Column
+from sqlalchemy import Column, Integer, Numeric
+
 from .base import Base
+
 
 class X2Game(Base):
     __tablename__ = "x2game"

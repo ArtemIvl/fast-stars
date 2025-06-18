@@ -1,17 +1,40 @@
+from decimal import Decimal
+
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from db.models.user import User
+from db.models.withdrawal import WithdrawalStatus
 from db.session import SessionLocal
-from keyboards.admin_keyboards import manage_users_keyboard, back_to_users_keyboard, back_to_withdrawal_keyboard, banned_users_keyboard, user_referrals_keyboard
-from utils.user_requests import (add_admin, ban_user, get_user_by_telegram_id,
-                                 remove_admin, unban_user, get_user_by_id, get_user_bonus_claim_percent, get_user_task_completion_percent, get_banned_users_page, get_banned_users_count)
+from keyboards.admin_keyboards import (
+    back_to_users_keyboard,
+    back_to_withdrawal_keyboard,
+    banned_users_keyboard,
+    manage_users_keyboard,
+    user_referrals_keyboard,
+)
+from sqlalchemy.ext.asyncio import AsyncSession
+from utils.referral_requests import (
+    get_referral_count,
+    get_referral_stats,
+    get_referrals,
+    get_referrals_page,
+    get_who_referred,
+)
+from utils.user_requests import (
+    add_admin,
+    ban_user,
+    get_banned_users_count,
+    get_banned_users_page,
+    get_user_bonus_claim_percent,
+    get_user_by_id,
+    get_user_by_telegram_id,
+    get_user_task_completion_percent,
+    remove_admin,
+    unban_user,
+)
 from utils.vip_requests import is_user_vip
 from utils.withdrawal_requests import get_completed_user_withdrawals
-from utils.referral_requests import get_referral_stats, get_referrals, get_who_referred, get_referrals_page, get_referral_count
-from db.models.withdrawal import WithdrawalStatus
-from sqlalchemy.ext.asyncio import AsyncSession
-from db.models.user import User
-from decimal import Decimal
 
 user_admin_router = Router()
 
@@ -23,12 +46,17 @@ class AdminActions(StatesGroup):
     add_admin = State()
     remove_admin = State()
 
-async def generate_detailed_user_text(session: AsyncSession, user: User, withdrawal_id: int | None = None) -> tuple[str, types.InlineKeyboardMarkup]:
+
+async def generate_detailed_user_text(
+    session: AsyncSession, user: User, withdrawal_id: int | None = None
+) -> tuple[str, types.InlineKeyboardMarkup]:
     is_vip = await is_user_vip(session, user.id)
     withdrawals = await get_completed_user_withdrawals(session, user.id)
     referral_stats = await get_referral_stats(session, user.id)
     user_bonus_claim_percent = await get_user_bonus_claim_percent(session, user.id)
-    user_task_completion_percent = await get_user_task_completion_percent(session, user.id)
+    user_task_completion_percent = await get_user_task_completion_percent(
+        session, user.id
+    )
     referrals = await get_referrals(session, user.id)
     referrer = await get_who_referred(session, user.id)
 
@@ -62,15 +90,14 @@ async def generate_detailed_user_text(session: AsyncSession, user: User, withdra
             f"<b>Обработанные выводы:</b>\n"
         )
     else:
-        text += (
-            f"У пользователя нет рефералов.\n\n"
-            f"<b>Обработанные выводы:</b>\n"
-        )
+        text += f"У пользователя нет рефералов.\n\n" f"<b>Обработанные выводы:</b>\n"
 
     if withdrawals:
         approved = [w for w in withdrawals if w.status == WithdrawalStatus.APPROVED]
         rejected = [w for w in withdrawals if w.status == WithdrawalStatus.REJECTED]
-        total_withdrawn = sum(w.stars for w in approved) if approved else Decimal("0.00")
+        total_withdrawn = (
+            sum(w.stars for w in approved) if approved else Decimal("0.00")
+        )
 
         text += (
             f"Заявок одобрено: {len(approved)}\n"
@@ -92,11 +119,18 @@ async def generate_detailed_user_text(session: AsyncSession, user: User, withdra
 
     return text, keyboard
 
-async def generate_user_referrals_text(session: AsyncSession, user: User, withdrawal_id: int, page: int = 1, per_page: int = 10) -> tuple[str, types.InlineKeyboardMarkup]:
+
+async def generate_user_referrals_text(
+    session: AsyncSession,
+    user: User,
+    withdrawal_id: int,
+    page: int = 1,
+    per_page: int = 10,
+) -> tuple[str, types.InlineKeyboardMarkup]:
     referrals = await get_referrals_page(session, user.id, page, per_page)
     referral_stats = await get_referral_stats(session, user.id)
     total_referrals = await get_referral_count(session, user.id)
-    total_pages = (total_referrals + per_page - 1) // per_page 
+    total_pages = (total_referrals + per_page - 1) // per_page
 
     text = f"<b>Рефералы пользователя @{user.username} (страница {page} из {total_pages}):</b>\n\n"
 
@@ -119,6 +153,7 @@ async def generate_user_referrals_text(session: AsyncSession, user: User, withdr
     kb = user_referrals_keyboard(user.id, withdrawal_id, page, total_pages)
     return text, kb
 
+
 @user_admin_router.callback_query(F.data.startswith("referrals_page_"))
 async def referrals_page_handler(callback: types.CallbackQuery):
     parts = callback.data.split("_")
@@ -133,7 +168,9 @@ async def referrals_page_handler(callback: types.CallbackQuery):
             await callback.answer("Пользователь не найден", show_alert=True)
             return
 
-        text, kb = await generate_user_referrals_text(session, user, withdrawal_id, page=page)
+        text, kb = await generate_user_referrals_text(
+            session, user, withdrawal_id, page=page
+        )
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
         await callback.answer()
 
@@ -145,14 +182,22 @@ async def view_detailed_user_info(callback: types.CallbackQuery) -> None:
     async with SessionLocal() as session:
         user = await get_user_by_id(session, user_id)
         if user:
-            text, keyboard = await generate_user_referrals_text(session, user, withdrawal_id)
-            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
+            text, keyboard = await generate_user_referrals_text(
+                session, user, withdrawal_id
+            )
+            await callback.message.edit_text(
+                text, parse_mode="HTML", reply_markup=keyboard
+            )
         else:
-            await callback.message.answer("Пользователь не найден.", reply_markup=back_to_users_keyboard())
+            await callback.message.answer(
+                "Пользователь не найден.", reply_markup=back_to_users_keyboard()
+            )
 
 
 @user_admin_router.callback_query(F.data == "manage_users")
-async def manage_users_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
+async def manage_users_callback(
+    callback: types.CallbackQuery, state: FSMContext
+) -> None:
     await state.clear()
     await callback.message.edit_text(
         "Управление пользователями:", reply_markup=manage_users_keyboard()
@@ -164,7 +209,7 @@ async def view_user_callback(callback: types.CallbackQuery, state: FSMContext) -
     await state.set_state(AdminActions.view_user)
     sent = await callback.message.edit_text(
         "Пожалуйста, отправьте телеграм айди пользователя, которого вы хотите посмотреть:",
-        reply_markup=back_to_users_keyboard()
+        reply_markup=back_to_users_keyboard(),
     )
     await state.update_data(last_bot_message_id=sent.message_id)
 
@@ -186,7 +231,10 @@ async def view_user_by_id(message: types.Message, state: FSMContext) -> None:
             await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
             await state.clear()
         else:
-            sent = await message.answer("Пользователь не найден. Попробуйте ещё раз:", reply_markup=back_to_users_keyboard())
+            sent = await message.answer(
+                "Пользователь не найден. Попробуйте ещё раз:",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
 
 
@@ -195,7 +243,7 @@ async def ban_user_callback(callback: types.CallbackQuery, state: FSMContext) ->
     await state.set_state(AdminActions.ban_user)
     sent = await callback.message.edit_text(
         "Пожалуйста, отправьте телеграм айди пользователя, которого вы хотите забанить:",
-        reply_markup=back_to_users_keyboard()
+        reply_markup=back_to_users_keyboard(),
     )
     await state.update_data(last_bot_message_id=sent.message_id)
 
@@ -214,14 +262,22 @@ async def ban_user_by_id(message: types.Message, state: FSMContext) -> None:
         user = await get_user_by_telegram_id(session, user_id)
         if user:
             if user.is_banned:
-                await message.answer("Пользователь уже забанен.", reply_markup=back_to_users_keyboard())
+                await message.answer(
+                    "Пользователь уже забанен.", reply_markup=back_to_users_keyboard()
+                )
                 await state.clear()
                 return
             await ban_user(session, user)
-            await message.answer(f"Пользователь с ID {user_id} заблокирован.", reply_markup=back_to_users_keyboard())
+            await message.answer(
+                f"Пользователь с ID {user_id} заблокирован.",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.clear()
         else:
-            sent = await message.answer("Пользоатель не найден. Попробуйте ещё раз:", reply_markup=back_to_users_keyboard())
+            sent = await message.answer(
+                "Пользоатель не найден. Попробуйте ещё раз:",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
 
 
@@ -230,7 +286,7 @@ async def unban_user_callback(callback: types.CallbackQuery, state: FSMContext) 
     await state.set_state(AdminActions.unban_user)
     sent = await callback.message.edit_text(
         "Пожалуйста, отправьте телеграм айди пользователя, которого вы хотите разбанить:",
-        reply_markup=back_to_users_keyboard()
+        reply_markup=back_to_users_keyboard(),
     )
     await state.update_data(last_bot_message_id=sent.message_id)
 
@@ -249,16 +305,24 @@ async def unban_user_by_id(message: types.Message, state: FSMContext) -> None:
         user = await get_user_by_telegram_id(session, user_id)
         if user:
             if not user.is_banned:
-                await message.answer("Пользователь не заблокирован.", reply_markup=back_to_users_keyboard())
+                await message.answer(
+                    "Пользователь не заблокирован.",
+                    reply_markup=back_to_users_keyboard(),
+                )
                 await state.clear()
                 return
             await unban_user(session, user)
-            await message.answer(f"Пользователь с ID {user_id} успешно разблокирован.", reply_markup=back_to_users_keyboard())
+            await message.answer(
+                f"Пользователь с ID {user_id} успешно разблокирован.",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.clear()
         else:
-            sent = await message.answer("Пользователь не найден. Попробуйте ещё раз:", reply_markup=back_to_users_keyboard())
+            sent = await message.answer(
+                "Пользователь не найден. Попробуйте ещё раз:",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
-
 
 
 @user_admin_router.callback_query(F.data == "add_admin")
@@ -266,7 +330,7 @@ async def add_admin_callback(callback: types.CallbackQuery, state: FSMContext) -
     await state.set_state(AdminActions.add_admin)
     sent = await callback.message.edit_text(
         "Пожалуйста, отправьте телеграм айди пользователя, которого вы хотите сделать админом:",
-        reply_markup=back_to_users_keyboard()
+        reply_markup=back_to_users_keyboard(),
     )
     await state.update_data(last_bot_message_id=sent.message_id)
 
@@ -285,24 +349,34 @@ async def make_user_admin(message: types.Message, state: FSMContext) -> None:
         user = await get_user_by_telegram_id(session, user_id)
         if user:
             if user.is_admin:
-                await message.answer("Пользователь уже администратор.", reply_markup=back_to_users_keyboard())
+                await message.answer(
+                    "Пользователь уже администратор.",
+                    reply_markup=back_to_users_keyboard(),
+                )
                 await state.clear()
                 return
             await add_admin(session, user)
-            await message.answer(f"Пользователь с ID {user_id} получил права администратора.", reply_markup=back_to_users_keyboard())
+            await message.answer(
+                f"Пользователь с ID {user_id} получил права администратора.",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.clear()
         else:
-            sent = await message.answer("Пользователь не найден. Попробуйте ещё раз:", reply_markup=back_to_users_keyboard())
+            sent = await message.answer(
+                "Пользователь не найден. Попробуйте ещё раз:",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
 
 
-
 @user_admin_router.callback_query(F.data == "remove_admin")
-async def remove_admin_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
+async def remove_admin_callback(
+    callback: types.CallbackQuery, state: FSMContext
+) -> None:
     await state.set_state(AdminActions.remove_admin)
     sent = await callback.message.edit_text(
         "Пожалуйста, отправьте телеграм айди пользователя, которого вы хотите удалить из админов:",
-        reply_markup=back_to_users_keyboard()
+        reply_markup=back_to_users_keyboard(),
     )
     await state.update_data(last_bot_message_id=sent.message_id)
 
@@ -321,19 +395,29 @@ async def remove_user_admin(message: types.Message, state: FSMContext) -> None:
         user = await get_user_by_telegram_id(session, user_id)
         if user:
             if not user.is_admin:
-                await message.answer("Пользователь не администратор.", reply_markup=back_to_users_keyboard())
+                await message.answer(
+                    "Пользователь не администратор.",
+                    reply_markup=back_to_users_keyboard(),
+                )
                 await state.clear()
                 return
             await remove_admin(session, user)
-            await message.answer(f"Пользователь с ID {user_id} был лишен прав администратора.", reply_markup=back_to_users_keyboard())
+            await message.answer(
+                f"Пользователь с ID {user_id} был лишен прав администратора.",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.clear()
         else:
-            sent = await message.answer("Пользователь не найден. Попробуйте ещё раз:", reply_markup=back_to_users_keyboard())
+            sent = await message.answer(
+                "Пользователь не найден. Попробуйте ещё раз:",
+                reply_markup=back_to_users_keyboard(),
+            )
             await state.update_data(last_bot_message_id=sent.message_id)
 
 
-
-def generate_banned_users_text(banned_users: list[User], page: int, pages: int, total: int, per_page: int = 10) -> tuple[str, types.InlineKeyboardMarkup | None]:
+def generate_banned_users_text(
+    banned_users: list[User], page: int, pages: int, total: int, per_page: int = 10
+) -> tuple[str, types.InlineKeyboardMarkup | None]:
     text = "<b>🚫 Заблокированные пользователи:</b>\n\n"
     if total == 0:
         text += "Нет забаненных пользователей."
@@ -346,6 +430,7 @@ def generate_banned_users_text(banned_users: list[User], page: int, pages: int, 
     kb = banned_users_keyboard(page, pages)
     return text, kb
 
+
 @user_admin_router.callback_query(F.data == "view_banned_users")
 async def view_banned_callback(callback: types.CallbackQuery) -> None:
     page = 1
@@ -354,7 +439,9 @@ async def view_banned_callback(callback: types.CallbackQuery) -> None:
         total = await get_banned_users_count(session)
         pages = (total + per_page - 1) // per_page
         banned_users = await get_banned_users_page(session, page, per_page)
-        text, kb = generate_banned_users_text(banned_users, page, pages, total, per_page)
+        text, kb = generate_banned_users_text(
+            banned_users, page, pages, total, per_page
+        )
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()
 
@@ -367,6 +454,8 @@ async def handle_banned_page(callback: types.CallbackQuery) -> None:
         total = await get_banned_users_count(session)
         pages = (total + per_page - 1) // per_page
         banned_users = await get_banned_users_page(session, page, per_page)
-        text, kb = generate_banned_users_text(banned_users, page, pages, total, per_page)
+        text, kb = generate_banned_users_text(
+            banned_users, page, pages, total, per_page
+        )
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()

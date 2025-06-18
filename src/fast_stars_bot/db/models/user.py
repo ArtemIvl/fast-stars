@@ -1,8 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import (BigInteger, Boolean, Column, Date, Integer, Numeric,
-                        String)
+from sqlalchemy import BigInteger, Boolean, Column, Date, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -26,10 +25,16 @@ class User(Base):
     vip_subscriptions = relationship("VipSubscription", back_populates="user")
     promo_activations = relationship("PromoActivation", back_populates="user")
     task_completions = relationship("TaskCompletion", back_populates="user")
-    referrals = relationship("Referral", foreign_keys="[Referral.referrer_id]", back_populates="referrer")
-    referred_by = relationship("Referral", foreign_keys="[Referral.referral_id]", back_populates="referral", uselist=False)
+    referrals = relationship(
+        "Referral", foreign_keys="[Referral.referrer_id]", back_populates="referrer"
+    )
+    referred_by = relationship(
+        "Referral",
+        foreign_keys="[Referral.referral_id]",
+        back_populates="referral",
+        uselist=False,
+    )
     withdrawals = relationship("Withdrawal", back_populates="user")
     deposits = relationship("Deposit", back_populates="user")
     giveaway_tickets = relationship("GiveawayTicket", back_populates="user")
     slot_machine_logs = relationship("SlotMachineLog", back_populates="user")
-

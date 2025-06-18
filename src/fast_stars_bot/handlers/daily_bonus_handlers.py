@@ -30,7 +30,7 @@ async def daily_bonus_callback(callback: types.CallbackQuery) -> None:
             if not user:
                 await callback.answer("Пользователь не найден.", show_alert=True)
                 return
-            
+
             bonus = await claim_daily_bonus(session, user)
             await callback.answer(
                 f"Вы получили {bonus}⭐️ за ежедневный бонус! 🎉\n\n"

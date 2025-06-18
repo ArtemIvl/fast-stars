@@ -3,13 +3,15 @@ from decimal import Decimal
 
 from aiogram import F, Router, types
 from aiogram.enums import DiceEmoji
-from db.session import SessionLocal
-from keyboards.basketball_keyboard import (back_to_basketball_keyboard,
-                                           basketball_keyboard)
-from utils.basketball_requests import log_basketball_game
-from utils.user_requests import get_user_by_telegram_id
 from aiogram.fsm.context import FSMContext
+from db.session import SessionLocal
+from keyboards.basketball_keyboard import (
+    back_to_basketball_keyboard,
+    basketball_keyboard,
+)
+from utils.basketball_requests import log_basketball_game
 from utils.game_settings_requests import get_game_setting
+from utils.user_requests import get_user_by_telegram_id
 
 router = Router()
 
@@ -39,8 +41,8 @@ async def basketball_game_callback(callback: types.CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("basketball_bet_"))
 async def basketball_payment(callback: types.CallbackQuery, state: FSMContext) -> None:
-    amount = int (callback.data.split("_")[-1])
-    
+    amount = int(callback.data.split("_")[-1])
+
     invoice = await callback.bot.send_invoice(
         chat_id=callback.from_user.id,
         title="Бросок мяча",
@@ -63,15 +65,24 @@ async def basketball_payment(callback: types.CallbackQuery, state: FSMContext) -
 
     asyncio.create_task(delete_invoice_later())
 
+
 @router.pre_checkout_query(lambda q: True)
-async def pre_checkout_query_handler(pre_checkout_query: types.PreCheckoutQuery) -> None:
+async def pre_checkout_query_handler(
+    pre_checkout_query: types.PreCheckoutQuery,
+) -> None:
     await pre_checkout_query.bot.answer_pre_checkout_query(
         pre_checkout_query.id,
         ok=True,
     )
 
-@router.message(F.successful_payment, F.successful_payment.invoice_payload.startswith("basketball_game"))
-async def successful_basketball_payment(message: types.Message, state: FSMContext) -> None:
+
+@router.message(
+    F.successful_payment,
+    F.successful_payment.invoice_payload.startswith("basketball_game"),
+)
+async def successful_basketball_payment(
+    message: types.Message, state: FSMContext
+) -> None:
     amount = Decimal(message.successful_payment.total_amount)
     telegram_id = message.from_user.id
 
@@ -82,11 +93,12 @@ async def successful_basketball_payment(message: types.Message, state: FSMContex
         invoice_msg_id = data.get("invoice_msg_id")
         if invoice_msg_id:
             try:
-                await message.bot.delete_message(chat_id=message.chat.id, message_id=invoice_msg_id)
+                await message.bot.delete_message(
+                    chat_id=message.chat.id, message_id=invoice_msg_id
+                )
             except Exception:
                 pass
 
-        
         sent_dice = await message.answer_dice(emoji=DiceEmoji.BASKETBALL)
         result = sent_dice.dice.value
         win = result == 4 or result == 5

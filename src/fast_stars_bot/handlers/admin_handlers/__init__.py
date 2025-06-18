@@ -3,13 +3,13 @@ from filters.is_admin import IsAdmin
 
 from .base_admin import base_admin_router
 from .channel_admin import channel_admin_router
-from .promo_admin import promo_admin_router
-from .user_admin import user_admin_router
-from .task_admin import task_admin_router
 from .games_admin import games_admin_router
-from .message_admin import message_admin_router
-from .withdraw_admin import withdraw_admin_router
 from .giveaway_admin import giveaway_admin_router
+from .message_admin import message_admin_router
+from .promo_admin import promo_admin_router
+from .task_admin import task_admin_router
+from .user_admin import user_admin_router
+from .withdraw_admin import withdraw_admin_router
 
 
 def register_admin_handlers(dp):

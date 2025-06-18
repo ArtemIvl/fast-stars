@@ -3,11 +3,14 @@ from decimal import Decimal
 
 from aiogram import F, Router, types
 from aiogram.enums import DiceEmoji
+from aiogram.fsm.context import FSMContext
 from db.session import SessionLocal
-from keyboards.slot_machine_keyboard import (back_to_slot_machine_keyboard, slot_machine_keyboard)
+from keyboards.slot_machine_keyboard import (
+    back_to_slot_machine_keyboard,
+    slot_machine_keyboard,
+)
 from utils.slot_machine_requests import log_slot_machine_spin
 from utils.user_requests import get_user_by_telegram_id
-from aiogram.fsm.context import FSMContext
 
 router = Router()
 
@@ -37,8 +40,8 @@ async def basketball_game_callback(callback: types.CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("slot_machine_"))
 async def basketball_payment(callback: types.CallbackQuery, state: FSMContext) -> None:
-    amount = int (callback.data.split("_")[-1])
-    
+    amount = int(callback.data.split("_")[-1])
+
     invoice = await callback.bot.send_invoice(
         chat_id=callback.from_user.id,
         title="Покупка спинов",
@@ -59,14 +62,21 @@ async def basketball_payment(callback: types.CallbackQuery, state: FSMContext) -
 
     asyncio.create_task(delete_invoice_later())
 
+
 @router.pre_checkout_query(lambda q: True)
-async def pre_checkout_query_handler(pre_checkout_query: types.PreCheckoutQuery) -> None:
+async def pre_checkout_query_handler(
+    pre_checkout_query: types.PreCheckoutQuery,
+) -> None:
     await pre_checkout_query.bot.answer_pre_checkout_query(
         pre_checkout_query.id,
         ok=True,
     )
 
-@router.message(F.successful_payment, F.successful_payment.invoice_payload.startswith("slot_machine"))
+
+@router.message(
+    F.successful_payment,
+    F.successful_payment.invoice_payload.startswith("slot_machine"),
+)
 async def successful_slot_machine_payment(message: types.Message) -> None:
     number_of_spins = int(message.successful_payment.total_amount)
     telegram_id = message.from_user.id
@@ -75,7 +85,7 @@ async def successful_slot_machine_payment(message: types.Message) -> None:
 
     async with SessionLocal() as session:
         user = await get_user_by_telegram_id(session, telegram_id)
-        
+
         for i in range(number_of_spins):
             sent_dice = await message.answer_dice(emoji=DiceEmoji.SLOT_MACHINE)
             result = sent_dice.dice.value
@@ -91,13 +101,19 @@ async def successful_slot_machine_payment(message: types.Message) -> None:
 
             await log_slot_machine_spin(session, user, reward)
             total_reward += reward
-            results_text.append(f"🎰 Результат #{i+1}: {'+{}⭐'.format(reward) if reward > 0 else 'ничего'}")
+            results_text.append(
+                f"🎰 Результат #{i+1}: {'+{}⭐'.format(reward) if reward > 0 else 'ничего'}"
+            )
             await asyncio.sleep(3)
-    
+
     text = (
         "🎰 <b>Результаты прокрутов:</b>\n\n"
         + "\n".join(results_text)
         + f"\n\n💰 <b>Общий выигрыш:</b> {total_reward}⭐"
     )
 
-    await message.answer(text, parse_mode="HTML", reply_markup=back_to_slot_machine_keyboard(number_of_spins))
+    await message.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=back_to_slot_machine_keyboard(number_of_spins),
+    )

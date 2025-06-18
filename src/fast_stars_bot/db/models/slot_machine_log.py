@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 
 from .base import Base
 
+
 class SlotMachineLog(Base):
     __tablename__ = "slot_machine_logs"
 
